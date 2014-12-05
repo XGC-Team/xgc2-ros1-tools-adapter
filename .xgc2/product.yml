@@ -1,7 +1,7 @@
 schema: xgc2.product.v1
 id: xgc2-ros1-tools-adapter
 name: XGC2 ROS1 Tools Adapter
-version: 0.1.2-7
+version: 0.1.2-8
 kind: ros1-apt
 summary: Generic typed ROS1 topic-publish and service-call capabilities provided as
   an XGC2 Adapter Runtime application.
@@ -76,4 +76,4 @@ release:
     libxgc2-adapter-runtime-client-dev: rebuild
     xgc2-protobuf: rebuild
   apt_versions:
-    focal: 0.1.2-7
+    focal: 0.1.2-8
