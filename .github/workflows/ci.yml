@@ -1,0 +1,100 @@
+name: ci
+
+on:
+  push:
+    branches:
+      - noetic
+  pull_request:
+    branches:
+      - noetic
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  cpp-quality:
+    name: cpp-quality
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run C++ quality gate in Docker
+        run: |
+          set -euo pipefail
+          docker pull ros:noetic-ros-base-focal
+          docker run --rm \
+            -e DEBIAN_FRONTEND=noninteractive \
+            -v "$GITHUB_WORKSPACE:/workspace/source:ro" \
+            ros:noetic-ros-base-focal \
+            bash -lc '
+              set -euo pipefail
+              export DEBIAN_FRONTEND=noninteractive
+              apt-get update
+              apt-get install -y --no-install-recommends \
+                build-essential \
+                clang-format \
+                clang-tidy \
+                cmake \
+                libjsoncpp-dev \
+                pkg-config \
+                rsync \
+                ros-noetic-mavros-msgs \
+                ros-noetic-ros-babel-fish \
+                ros-noetic-roscpp \
+                ros-noetic-roslib \
+                ros-noetic-rostest \
+                ros-noetic-std-msgs \
+                ros-noetic-std-srvs
+
+              /workspace/source/.xgc2/scripts/check_cpp_quality.sh \
+                --work-dir /tmp/xgc2-ros1-automation-gateway-quality
+            '
+
+  build:
+    name: package-tests-debs-${{ matrix.arch }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-latest
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build, test, and install-check Debian package
+        run: |
+          set -euo pipefail
+          install -d .ci/build-manifests
+          .xgc2/scripts/build_debs_in_docker.sh \
+            --work-dir "$RUNNER_TEMP/xgc2-ros1-automation-gateway-${{ matrix.arch }}" \
+            --output-dir "$GITHUB_WORKSPACE/debs"
+
+      - name: Create trusted build manifest
+        run: |
+          set -euo pipefail
+          product_version="$(awk -F': *' '/^version:/ {print $2; exit}' .xgc2/product.yml)"
+          python3 .xgc2/scripts/xgc2_artifact_manifest.py build \
+            --deb-dir debs \
+            --output-dir .ci/build-manifests \
+            --product xgc2-ros1-automation-gateway \
+            --product-version "$product_version" \
+            --distribution focal \
+            --architecture "${{ matrix.arch }}" \
+            --source-sha "$GITHUB_SHA" \
+            --ci-run-id "$GITHUB_RUN_ID" \
+            --ci-workflow "$GITHUB_WORKFLOW" \
+            --ci-workflow-ref "$GITHUB_WORKFLOW_REF"
+
+      - name: Upload trusted build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: xgc2-ros1-automation-gateway-debs-${{ matrix.arch }}
+          path: |
+            debs/*.deb
+            .ci/build-manifests/*.json
+          retention-days: 14
+          include-hidden-files: true

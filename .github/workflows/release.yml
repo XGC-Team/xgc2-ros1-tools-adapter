@@ -1,0 +1,195 @@
+name: release
+
+on:
+  workflow_dispatch:
+    inputs:
+      expected_version:
+        description: Expected .xgc2/product.yml version
+        required: true
+        type: string
+      expected_source_sha:
+        description: Expected source commit SHA
+        required: true
+        type: string
+      prepare_action:
+        description: Release-train action
+        required: false
+        default: release
+        type: choice
+        options:
+          - release
+          - compatibility-verify
+      apt_overlay_url:
+        description: Optional release-scoped staging APT base URL
+        required: false
+        default: ""
+        type: string
+      dependency_set_digest:
+        description: SHA256 of the resolved release-train dependency set
+        required: false
+        default: ""
+        type: string
+      run_cpp_quality:
+        description: Run C++ quality checks
+        required: true
+        default: false
+        type: boolean
+      run_source_tests:
+        description: Run source tests
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  actions: read
+  contents: read
+
+env:
+  XGC2_APT_OVERLAY_URL: ${{ inputs.apt_overlay_url }}
+  XGC2_DEPENDENCY_SET_DIGEST: ${{ inputs.dependency_set_digest }}
+
+jobs:
+  prepare-contract:
+    name: Validate prepare contract
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate release-train inputs
+        env:
+          PREPARE_ACTION: ${{ inputs.prepare_action }}
+          APT_OVERLAY_URL: ${{ inputs.apt_overlay_url }}
+          DEPENDENCY_SET_DIGEST: ${{ inputs.dependency_set_digest }}
+        run: |
+          set -euo pipefail
+          case "$PREPARE_ACTION" in
+            release|compatibility-verify) ;;
+            *)
+              echo "unsupported prepare_action: $PREPARE_ACTION" >&2
+              exit 1
+              ;;
+          esac
+          if [[ -n "$DEPENDENCY_SET_DIGEST" && ! "$DEPENDENCY_SET_DIGEST" =~ ^[0-9a-f]{64}$ ]]; then
+            echo "dependency_set_digest must be empty or 64 lowercase hex characters" >&2
+            exit 1
+          fi
+          if [[ -n "$APT_OVERLAY_URL" && ! "$DEPENDENCY_SET_DIGEST" =~ ^[0-9a-f]{64}$ ]]; then
+            echo "apt_overlay_url requires a dependency_set_digest" >&2
+            exit 1
+          fi
+
+  release-guard:
+    needs: prepare-contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate release inputs
+        env:
+          EXPECTED_VERSION: ${{ inputs.expected_version }}
+          EXPECTED_SOURCE_SHA: ${{ inputs.expected_source_sha }}
+        run: |
+          set -euo pipefail
+          product_version="$(awk -F': *' '/^version:[[:space:]]*/ {print $2; exit}' .xgc2/product.yml)"
+          if [[ "$product_version" != "$EXPECTED_VERSION" ]]; then
+            echo "product.yml version $product_version != expected_version $EXPECTED_VERSION" >&2
+            exit 1
+          fi
+          source_sha="$(git rev-parse HEAD)"
+          if [[ "$source_sha" != "$EXPECTED_SOURCE_SHA" ]]; then
+            echo "HEAD $source_sha != expected_source_sha $EXPECTED_SOURCE_SHA" >&2
+            exit 1
+          fi
+
+  cpp-quality:
+    if: ${{ inputs.run_cpp_quality }}
+    name: cpp-quality
+    needs: release-guard
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run C++ quality gate in Docker
+        run: |
+          set -euo pipefail
+          docker pull ros:noetic-ros-base-focal
+          docker run --rm \
+            -e XGC2_APT_OVERLAY_URL="${XGC2_APT_OVERLAY_URL:-}" \
+            -e DEBIAN_FRONTEND=noninteractive \
+            -v "$GITHUB_WORKSPACE:/workspace/source:ro" \
+            ros:noetic-ros-base-focal \
+            bash -lc '
+              set -euo pipefail
+              export DEBIAN_FRONTEND=noninteractive
+              apt-get update
+              apt-get install -y --no-install-recommends \
+                build-essential \
+                clang-format \
+                clang-tidy \
+                cmake \
+                libjsoncpp-dev \
+                pkg-config \
+                rsync \
+                ros-noetic-mavros-msgs \
+                ros-noetic-ros-babel-fish \
+                ros-noetic-roscpp \
+                ros-noetic-roslib \
+                ros-noetic-rostest \
+                ros-noetic-std-msgs \
+                ros-noetic-std-srvs
+
+              /workspace/source/.xgc2/scripts/check_cpp_quality.sh \
+                --work-dir /tmp/xgc2-ros1-automation-gateway-quality
+            '
+
+  build:
+    name: package-tests-debs-${{ matrix.arch }}
+    needs: release-guard
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-latest
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build, test, and install-check Debian package
+        env:
+          RUN_SOURCE_TESTS: ${{ inputs.run_source_tests }}
+        run: |
+          set -euo pipefail
+          install -d .ci/build-manifests
+          if [[ "$RUN_SOURCE_TESTS" != "true" ]]; then
+            echo "Source tests are mandatory in the package build and remain enabled." >&2
+          fi
+          .xgc2/scripts/build_debs_in_docker.sh \
+            --work-dir "$RUNNER_TEMP/xgc2-ros1-automation-gateway-${{ matrix.arch }}" \
+            --output-dir "$GITHUB_WORKSPACE/debs"
+
+      - name: Create release-train build manifest
+        run: |
+          set -euo pipefail
+          python3 .xgc2/scripts/xgc2_artifact_manifest.py build \
+            --deb-dir debs \
+            --output-dir .ci/build-manifests \
+            --product xgc2-ros1-automation-gateway \
+            --product-version "${{ inputs.expected_version }}" \
+            --distribution focal \
+            --architecture "${{ matrix.arch }}" \
+            --source-sha "${{ inputs.expected_source_sha }}" \
+            --ci-run-id "$GITHUB_RUN_ID" \
+            --ci-workflow "$GITHUB_WORKFLOW" \
+            --ci-workflow-ref "$GITHUB_WORKFLOW_REF"
+
+      - name: Upload trusted build artifacts
+        if: ${{ inputs.prepare_action == 'release' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: xgc2-ros1-automation-gateway-debs-${{ matrix.arch }}
+          path: |
+            debs/*.deb
+            .ci/build-manifests/*.json
+          retention-days: 14
+          include-hidden-files: true

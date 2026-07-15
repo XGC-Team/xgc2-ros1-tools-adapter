@@ -1,0 +1,13 @@
+<launch>
+  <node pkg="xgc_ros1_automation_gateway"
+        type="xgc_ros1_automation_gateway_node"
+        name="xgc_ros1_automation_gateway"
+        args="--socket /tmp/xgc_ros1_automation_gateway_e2e.sock"
+        output="screen"
+        required="true"/>
+
+  <test test-name="xgc_ros1_automation_gateway_e2e"
+        pkg="xgc_ros1_automation_gateway"
+        type="xgc_ros1_automation_gateway_e2e_tests"
+        time-limit="120.0"/>
+</launch>

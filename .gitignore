@@ -1,0 +1,11 @@
+/build/
+/devel/
+/install/
+/install-root/
+/debs/
+/.ci/
+/.work/
+*.deb
+compile_commands.json
+__pycache__/
+*.pyc

@@ -1,0 +1,54 @@
+schema: xgc2.product.v1
+id: xgc2-ros1-automation-gateway
+name: XGC2 ROS1 Automation Gateway
+version: 0.1.0-1
+kind: ros1-apt
+summary: Local Unix-socket gateway for dynamically publishing ROS1 messages and calling ROS1 services from XGC2 workflows.
+groups:
+  - ros1
+  - communication
+  - automation
+
+ros:
+  distro: noetic
+  workspace: catkin
+  packages:
+    - xgc_ros1_automation_gateway
+
+apt:
+  distribution: focal
+  install:
+    - ros-noetic-xgc2-ros1-automation-gateway
+  packages:
+    - ros-noetic-xgc2-ros1-automation-gateway
+  depends:
+    - libjsoncpp1
+    - ros-noetic-mavros-msgs
+    - ros-noetic-ros-babel-fish
+    - ros-noetic-roscpp
+    - ros-noetic-roslib
+    - ros-noetic-std-msgs
+    - ros-noetic-std-srvs
+
+usage:
+  install: |
+    sudo apt update
+    sudo apt install ros-noetic-xgc2-ros1-automation-gateway
+  smoke_test: |
+    rospack find xgc_ros1_automation_gateway
+    test -x /opt/ros/noetic/lib/xgc_ros1_automation_gateway/xgc_ros1_automation_gateway_node
+  notes: |
+    XGC2 Agent starts one process per ROS context on demand and supplies a
+    context-specific Unix socket. The package does not install a systemd unit
+    or expose a network listener.
+
+ownership:
+  paths:
+    - /opt/ros/noetic/share/xgc_ros1_automation_gateway
+    - /opt/ros/noetic/lib/xgc_ros1_automation_gateway/xgc_ros1_automation_gateway_node
+
+release:
+  repository: lxk36/xgc2-ros1-automation-gateway
+  ref: noetic
+  workflow: release.yml
+  ci_workflow: ci.yml
