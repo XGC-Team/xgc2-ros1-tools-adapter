@@ -2,6 +2,7 @@
 
 #include <atomic>
 #include <csignal>
+#include <cstdlib>
 #include <exception>
 #include <iostream>
 #include <mutex>
@@ -16,6 +17,21 @@
 namespace {
 
 std::atomic<bool> stop_requested{false};
+
+void unsetEmptyRosNetworkVariable(const char* name) {
+  const char* value = std::getenv(name);
+  if (value != nullptr && value[0] == '\0' && ::unsetenv(name) != 0) {
+    throw std::runtime_error("unable to unset empty " + std::string(name));
+  }
+}
+
+void sanitizeRosNetworkEnvironment() {
+  // roscpp treats a present ROS_HOSTNAME as authoritative even when its value
+  // is empty. Process templates intentionally expose both optional fields, so
+  // remove empty values before ros::init chooses the advertised XML-RPC host.
+  unsetEmptyRosNetworkVariable("ROS_IP");
+  unsetEmptyRosNetworkVariable("ROS_HOSTNAME");
+}
 
 void handleSignal(int) {
   stop_requested.store(true, std::memory_order_release);
@@ -53,6 +69,7 @@ std::string parseSocketPath(int argc, char** argv) {
 int main(int argc, char** argv) {
   try {
     const std::string socket_path = parseSocketPath(argc, argv);
+    sanitizeRosNetworkEnvironment();
     ros::init(
         argc, argv, "xgc_ros1_automation_gateway",
         ros::init_options::AnonymousName | ros::init_options::NoSigintHandler);

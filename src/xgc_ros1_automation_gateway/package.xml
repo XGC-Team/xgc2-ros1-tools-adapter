@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package format="2">
   <name>xgc_ros1_automation_gateway</name>
-  <version>0.1.0</version>
+  <version>0.1.1</version>
   <description>Typed ROS1 topic publishing and service calls for XGC2 Automations.</description>
 
   <maintainer email="lxk36@users.noreply.github.com">XGC2</maintainer>
