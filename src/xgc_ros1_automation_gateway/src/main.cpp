@@ -53,8 +53,9 @@ std::string parseSocketPath(int argc, char** argv) {
 int main(int argc, char** argv) {
   try {
     const std::string socket_path = parseSocketPath(argc, argv);
-    ros::init(argc, argv, "xgc_ros1_automation_gateway",
-              ros::init_options::NoSigintHandler);
+    ros::init(
+        argc, argv, "xgc_ros1_automation_gateway",
+        ros::init_options::AnonymousName | ros::init_options::NoSigintHandler);
     ros::NodeHandle node_handle;
     ros::AsyncSpinner spinner(2);
     spinner.start();
