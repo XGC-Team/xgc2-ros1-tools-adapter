@@ -4,7 +4,12 @@
         name="xgc_ros1_automation_gateway"
         args="--socket /tmp/xgc_ros1_automation_gateway_e2e.sock"
         output="screen"
-        required="true"/>
+        required="true">
+    <!-- XGC2 process templates pass both optional network variables. An empty
+         ROS_HOSTNAME must not override the configured ROS_IP in roscpp. -->
+    <env name="ROS_IP" value="127.0.0.1"/>
+    <env name="ROS_HOSTNAME" value=""/>
+  </node>
 
   <test test-name="xgc_ros1_automation_gateway_e2e"
         pkg="xgc_ros1_automation_gateway"

@@ -1,7 +1,7 @@
 schema: xgc2.product.v1
 id: xgc2-ros1-automation-gateway
 name: XGC2 ROS1 Automation Gateway
-version: 0.1.0-1
+version: 0.1.1-1
 kind: ros1-apt
 summary: Local Unix-socket gateway for dynamically publishing ROS1 messages and calling ROS1 services from XGC2 workflows.
 groups:
