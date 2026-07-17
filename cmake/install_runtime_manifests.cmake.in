@@ -1,0 +1,52 @@
+set(_artifact "$ENV{DESTDIR}@XGC2_INSTALLED_EXECUTABLE@")
+set(_adapter_output
+    "$ENV{DESTDIR}/usr/share/xgc2/adapter-definitions/xgc2-ros1-tools-adapter.json")
+set(_process_output
+    "$ENV{DESTDIR}/usr/share/xgc2/process-definitions/xgc2-ros1-tools-adapter.json")
+
+get_filename_component(_adapter_directory "${_adapter_output}" DIRECTORY)
+get_filename_component(_process_directory "${_process_output}" DIRECTORY)
+file(MAKE_DIRECTORY "${_adapter_directory}" "${_process_directory}")
+
+execute_process(
+  COMMAND "@PYTHON_EXECUTABLE@"
+          "@CMAKE_CURRENT_SOURCE_DIR@/../../tools/generate_runtime_manifests.py"
+          --executable "${_artifact}"
+          --artifact-path "@XGC2_INSTALLED_EXECUTABLE@"
+          --schema-dir "@CMAKE_CURRENT_SOURCE_DIR@/../../schemas"
+          --version "@PROJECT_VERSION@"
+          --adapter-output "${_adapter_output}"
+          --process-output "${_process_output}"
+  RESULT_VARIABLE _manifest_result
+  ERROR_VARIABLE _manifest_error
+)
+if(NOT _manifest_result EQUAL 0)
+  message(FATAL_ERROR
+          "failed to generate installed Adapter Runtime manifests: ${_manifest_error}")
+endif()
+
+execute_process(
+  COMMAND "@PYTHON_EXECUTABLE@"
+          "@CMAKE_CURRENT_SOURCE_DIR@/../../tools/verify_runtime_manifests.py"
+          --executable "${_artifact}"
+          --artifact-path "@XGC2_INSTALLED_EXECUTABLE@"
+          --schema-dir "@CMAKE_CURRENT_SOURCE_DIR@/../../schemas"
+          --adapter-manifest "${_adapter_output}"
+          --process-manifest "${_process_output}"
+  RESULT_VARIABLE _verify_result
+  ERROR_VARIABLE _verify_error
+)
+if(NOT _verify_result EQUAL 0)
+  message(FATAL_ERROR
+          "installed Adapter Runtime manifests failed verification: ${_verify_error}")
+endif()
+
+unset(_artifact)
+unset(_adapter_output)
+unset(_process_output)
+unset(_adapter_directory)
+unset(_process_directory)
+unset(_manifest_result)
+unset(_manifest_error)
+unset(_verify_result)
+unset(_verify_error)

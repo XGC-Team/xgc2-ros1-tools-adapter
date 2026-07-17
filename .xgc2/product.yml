@@ -1,29 +1,31 @@
 schema: xgc2.product.v1
-id: xgc2-ros1-automation-gateway
-name: XGC2 ROS1 Automation Gateway
-version: 0.1.1-1
+id: xgc2-ros1-tools-adapter
+name: XGC2 ROS1 Tools Adapter
+version: 0.1.2-1
 kind: ros1-apt
-summary: Local Unix-socket gateway for dynamically publishing ROS1 messages and calling ROS1 services from XGC2 workflows.
+summary: Generic typed ROS1 topic-publish and service-call capabilities provided
+  as an XGC2 Adapter Runtime application.
 groups:
   - ros1
   - communication
-  - automation
+  - adapter
 
 ros:
   distro: noetic
   workspace: catkin
   packages:
-    - xgc_ros1_automation_gateway
+    - xgc_ros1_tools_adapter
 
 apt:
   distribution: focal
   install:
-    - ros-noetic-xgc2-ros1-automation-gateway
+    - ros-noetic-xgc2-ros1-tools-adapter
   packages:
-    - ros-noetic-xgc2-ros1-automation-gateway
+    - ros-noetic-xgc2-ros1-tools-adapter
   depends:
     - libjsoncpp1
-    - ros-noetic-mavros-msgs
+    - libxgc2-adapter-runtime-client-dev
+    - xgc2-protobuf-dev
     - ros-noetic-ros-babel-fish
     - ros-noetic-roscpp
     - ros-noetic-roslib
@@ -33,22 +35,30 @@ apt:
 usage:
   install: |
     sudo apt update
-    sudo apt install ros-noetic-xgc2-ros1-automation-gateway
+    sudo apt install ros-noetic-xgc2-ros1-tools-adapter
   smoke_test: |
-    rospack find xgc_ros1_automation_gateway
-    test -x /opt/ros/noetic/lib/xgc_ros1_automation_gateway/xgc_ros1_automation_gateway_node
+    rospack find xgc_ros1_tools_adapter
+    test -x /opt/ros/noetic/lib/xgc_ros1_tools_adapter/xgc_ros1_tools_adapter_node
+    test -x /opt/ros/noetic/lib/xgc_ros1_tools_adapter/xgc_ros1_tools_adapter_service_helper
+    test -f /usr/share/xgc2/adapter-definitions/xgc2-ros1-tools-adapter.json
+    test -f /usr/share/xgc2/process-definitions/xgc2-ros1-tools-adapter.json
   notes: |
-    XGC2 Agent starts one process per ROS context on demand and supplies a
-    context-specific Unix socket. The package does not install a systemd unit
-    or expose a network listener.
+    Core or Agent supervises one process per ROS1 native context and supplies a
+    mode-0600 binary AdapterProcessBootstrap. The process exposes no listener
+    other than its outbound connection to the target-local Adapter Runtime.
+    Release packages require the 0.5.0 Runtime client ABI and matching 0.5.0
+    XGC2 protocol package exactly.
 
 ownership:
   paths:
-    - /opt/ros/noetic/share/xgc_ros1_automation_gateway
-    - /opt/ros/noetic/lib/xgc_ros1_automation_gateway/xgc_ros1_automation_gateway_node
+    - /opt/ros/noetic/share/xgc_ros1_tools_adapter
+    - /opt/ros/noetic/lib/xgc_ros1_tools_adapter/xgc_ros1_tools_adapter_node
+    - /opt/ros/noetic/lib/xgc_ros1_tools_adapter/xgc_ros1_tools_adapter_service_helper
+    - /usr/share/xgc2/adapter-definitions/xgc2-ros1-tools-adapter.json
+    - /usr/share/xgc2/process-definitions/xgc2-ros1-tools-adapter.json
 
 release:
-  repository: lxk36/xgc2-ros1-automation-gateway
+  repository: lxk36/xgc2-ros1-tools-adapter
   ref: noetic
   workflow: release.yml
   ci_workflow: ci.yml

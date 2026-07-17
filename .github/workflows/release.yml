@@ -47,12 +47,19 @@ permissions:
 env:
   XGC2_APT_OVERLAY_URL: ${{ inputs.apt_overlay_url }}
   XGC2_DEPENDENCY_SET_DIGEST: ${{ inputs.dependency_set_digest }}
+  ADAPTER_RUNTIME_CLIENT_DEB_VERSION: 0.5.0-1~focal
+  XGC2_PROTOBUF_DEB_VERSION: 0.5.0-1~focal
+  XGC2_BOOTSTRAP_COMMON_FROM_GIT: ${{ inputs.apt_overlay_url == '' && 'true' || 'false' }}
+  XGC2_PROTOBUF_GIT_TAG: v0.5.0-1
+  XGC2_ADAPTER_RUNTIME_CLIENT_GIT_TAG: v0.5.0-1
 
 jobs:
   prepare-contract:
     name: Validate prepare contract
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+
       - name: Validate release-train inputs
         env:
           PREPARE_ACTION: ${{ inputs.prepare_action }}
@@ -74,6 +81,9 @@ jobs:
           if [[ -n "$APT_OVERLAY_URL" && ! "$DEPENDENCY_SET_DIGEST" =~ ^[0-9a-f]{64}$ ]]; then
             echo "apt_overlay_url requires a dependency_set_digest" >&2
             exit 1
+          fi
+          if [[ -n "$APT_OVERLAY_URL" ]]; then
+            .xgc2/scripts/configure_xgc2_apt.sh --validate-url "$APT_OVERLAY_URL"
           fi
 
   release-guard:
@@ -112,6 +122,11 @@ jobs:
           set -euo pipefail
           docker pull ros:noetic-ros-base-focal
           docker run --rm \
+            -e ADAPTER_RUNTIME_CLIENT_DEB_VERSION \
+            -e XGC2_PROTOBUF_DEB_VERSION \
+            -e XGC2_BOOTSTRAP_COMMON_FROM_GIT \
+            -e XGC2_PROTOBUF_GIT_TAG \
+            -e XGC2_ADAPTER_RUNTIME_CLIENT_GIT_TAG \
             -e XGC2_APT_OVERLAY_URL="${XGC2_APT_OVERLAY_URL:-}" \
             -e DEBIAN_FRONTEND=noninteractive \
             -v "$GITHUB_WORKSPACE:/workspace/source:ro" \
@@ -119,7 +134,7 @@ jobs:
             bash -lc '
               set -euo pipefail
               export DEBIAN_FRONTEND=noninteractive
-              apt-get update
+              /workspace/source/.xgc2/scripts/configure_xgc2_apt.sh focal
               apt-get install -y --no-install-recommends \
                 build-essential \
                 clang-format \
@@ -127,17 +142,21 @@ jobs:
                 cmake \
                 libjsoncpp-dev \
                 pkg-config \
+                ripgrep \
                 rsync \
-                ros-noetic-mavros-msgs \
+                ros-noetic-geometry-msgs \
                 ros-noetic-ros-babel-fish \
                 ros-noetic-roscpp \
                 ros-noetic-roslib \
                 ros-noetic-rostest \
                 ros-noetic-std-msgs \
-                ros-noetic-std-srvs
+                ros-noetic-std-srvs \
+                shellcheck
+
+              /workspace/source/.xgc2/scripts/bootstrap_common_dependencies.sh
 
               /workspace/source/.xgc2/scripts/check_cpp_quality.sh \
-                --work-dir /tmp/xgc2-ros1-automation-gateway-quality
+                --work-dir /tmp/xgc2-ros1-tools-adapter-quality
             '
 
   build:
@@ -165,7 +184,7 @@ jobs:
             echo "Source tests are mandatory in the package build and remain enabled." >&2
           fi
           .xgc2/scripts/build_debs_in_docker.sh \
-            --work-dir "$RUNNER_TEMP/xgc2-ros1-automation-gateway-${{ matrix.arch }}" \
+            --work-dir "$RUNNER_TEMP/xgc2-ros1-tools-adapter-${{ matrix.arch }}" \
             --output-dir "$GITHUB_WORKSPACE/debs"
 
       - name: Create release-train build manifest
@@ -174,7 +193,8 @@ jobs:
           python3 .xgc2/scripts/xgc2_artifact_manifest.py build \
             --deb-dir debs \
             --output-dir .ci/build-manifests \
-            --product xgc2-ros1-automation-gateway \
+            --product xgc2-ros1-tools-adapter \
+            --expected-package ros-noetic-xgc2-ros1-tools-adapter \
             --product-version "${{ inputs.expected_version }}" \
             --distribution focal \
             --architecture "${{ matrix.arch }}" \
@@ -187,7 +207,7 @@ jobs:
         if: ${{ inputs.prepare_action == 'release' }}
         uses: actions/upload-artifact@v4
         with:
-          name: xgc2-ros1-automation-gateway-debs-${{ matrix.arch }}
+          name: xgc2-ros1-tools-adapter-debs-${{ matrix.arch }}
           path: |
             debs/*.deb
             .ci/build-manifests/*.json

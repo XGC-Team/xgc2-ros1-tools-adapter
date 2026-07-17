@@ -1,101 +1,89 @@
-# XGC2 ROS1 Automation Gateway
+# XGC2 ROS1 Tools Adapter
 
-`xgc_ros1_automation_gateway` is the local ROS Noetic execution boundary
-used by XGC2 workflow nodes. It accepts length-framed JSON requests over a Unix
-domain socket, dynamically resolves installed ROS message and service
-descriptions with `ros_babel_fish`, and performs publish or service-call
-operations without requiring XGC2 Agent to link against ROS.
+`xgc_ros1_tools_adapter` is a general Adapter Runtime application for ROS
+Noetic. It gives Core or Agent two native ROS1 capabilities without embedding
+ROS concepts in the Adapter base class:
 
-## Package
+- `xgc.ros1.topic.publish@1/publish`
+- `xgc.ros1.service.call@1/call`
 
-- Product id: `xgc2-ros1-automation-gateway`
-- Source path: `products/ros1/communication/ros1-automation-gateway`
-- Release branch: `noetic`
-- Package type: `ros1-apt`
-- Debian package: `ros-noetic-xgc2-ros1-automation-gateway`
-- ROS package: `xgc_ros1_automation_gateway`
-- Executable: `/opt/ros/noetic/lib/xgc_ros1_automation_gateway/xgc_ros1_automation_gateway_node`
+Both endpoints use the Runtime `operation` interaction, JSON payloads, required
+deadlines, required idempotency keys, and non-idempotent side-effect metadata.
+The generic C++ Runtime SDK owns registration, process/session fencing, paired
+Control and Work streams, dispatch, cancellation, terminal replay, and bounded
+queues. This product owns only ROS graph names, dynamic type resolution, JSON
+encoding, publishing, and service invocation.
 
-The wire protocol uses a four-byte big-endian payload length followed by one
-UTF-8 JSON object. Protocol version 1 limits a frame to 8 MiB. The socket is
-local-only; the product does not open a TCP port.
+There is no product-facing private request protocol, socket listener, request
+cache, workflow model, robot profile, or middleware-specific branch in Core.
+Each ROS service call runs in a bounded, one-shot helper process so an
+uninterruptible roscpp call can be killed and reaped without consuming an
+Adapter dispatch worker forever. Its private inherited socketpair is an
+in-package isolation boundary, never an API or legacy migration path.
 
-## Install
+## Installed identity
 
-```bash
-sudo apt update
-sudo apt install ros-noetic-xgc2-ros1-automation-gateway
+- Product: `xgc2-ros1-tools-adapter`
+- Debian package: `ros-noetic-xgc2-ros1-tools-adapter`
+- ROS package: `xgc_ros1_tools_adapter`
+- Executable: `/opt/ros/noetic/lib/xgc_ros1_tools_adapter/xgc_ros1_tools_adapter_node`
+- Service helper: `/opt/ros/noetic/lib/xgc_ros1_tools_adapter/xgc_ros1_tools_adapter_service_helper`
+- Adapter definition: `/usr/share/xgc2/adapter-definitions/xgc2-ros1-tools-adapter.json`
+- Internal process definition: `/usr/share/xgc2/process-definitions/xgc2-ros1-tools-adapter.json`
+
+The Adapter definition is generated from the installed executable during
+installation. Its `buildDigest` is therefore the SHA-256 of the exact packaged
+ELF, while capability and manifest digests are calculated from their canonical
+contracts. No placeholder digest is installed.
+
+## Runtime bootstrap
+
+The process is launched only by the target-local Process Supervisor:
+
+```text
+xgc_ros1_tools_adapter_node --adapter-bootstrap-file /absolute/private/bootstrap.pb
 ```
 
-## Smoke Test
+The binary bootstrap supplies the exact Runtime target, instance/process
+identity, capability contracts, full instance spec, and single-use credential.
+The initial `xgc.ros1.tools.v1.NativeContext` JSON configuration is parsed
+before `ros::init`, because roscpp fixes `ROS_MASTER_URI`, `ROS_IP`, and
+`ROS_HOSTNAME` during initialization. A running instance rejects any spec that
+attempts to change that native context.
+
+Topic publishers and service-call helpers exist only while their capability is
+enabled. Disabling a capability, clearing the instance spec, losing the Runtime
+session, or stopping the process tears down its native resources. Service
+cancellation or timeout before the helper's explicit commit fence is safe;
+after that fence the operation terminates as `uncertain` because the ROS server
+may already have executed the request.
+
+## Build
+
+The build requires ROS Noetic, JsonCpp,
+`libxgc2-adapter-runtime-client-dev` `0.5.0-1~focal`, and
+`xgc2-protobuf-dev` `0.5.0-1~focal`. Release packages pin both common
+dependencies exactly so the executable cannot be linked to an earlier Runtime
+client ABI or protocol library.
 
 ```bash
 source /opt/ros/noetic/setup.bash
-rospack find xgc_ros1_automation_gateway
-test -x /opt/ros/noetic/lib/xgc_ros1_automation_gateway/xgc_ros1_automation_gateway_node
+catkin_make -DCMAKE_BUILD_TYPE=RelWithDebInfo
+catkin_make run_tests_xgc_ros1_tools_adapter
+catkin_test_results --verbose build/test_results
 ```
 
-The package includes the ROS descriptions needed for common `std_msgs`
-and `std_srvs` checks and depends on `mavros_msgs` so MAVROS
-messages and services are available to the dynamic type resolver. The
-implementation has no message-name or service-name allowlist; a requested type
-must be installed in the selected ROS environment.
-
-## Runtime Ownership
-
-XGC2 Agent starts and stops this process on demand. It supplies a context-local
-socket path:
+The quality and package gates are:
 
 ```bash
-source /opt/ros/noetic/setup.bash
-rosrun xgc_ros1_automation_gateway xgc_ros1_automation_gateway_node \
-  --socket /run/xgc2/ros1-automation-gateway/<context-sha256>.sock
-```
-
-The socket path is required and XGC2 Agent assigns one deterministic socket per
-ROS context. This package intentionally installs no systemd unit: lifecycle,
-restart, audit, and per-context isolation belong to XGC2 Agent.
-
-The product owns:
-
-- conversion between JSON values and dynamically described ROS1 values;
-- generic topic publication and service request/response handling;
-- the local framed protocol, validation limits, and structured error replies;
-- the installed node executable and ROS package metadata.
-
-It does not own XGC2 workflow definitions, ROS master lifecycle, MAVROS node
-lifecycle, robot authorization policy, or a remotely reachable bridge.
-
-## Build And Test
-
-The supported clean build path runs source tests, creates the Debian package,
-installs it in the same disposable container, and starts the installed binary
-against a temporary ROS master:
-
-```bash
-.xgc2/scripts/check_cpp_quality.sh \
-  --work-dir /tmp/xgc2-ros1-automation-gateway-quality
-
+.xgc2/scripts/check_cpp_quality.sh --work-dir /tmp/xgc2-ros1-tools-adapter-quality
 .xgc2/scripts/build_debs_in_docker.sh \
-  --work-dir /tmp/xgc2-ros1-automation-gateway-build \
+  --work-dir /tmp/xgc2-ros1-tools-adapter-build \
   --output-dir "$PWD/debs"
 ```
 
-The source test suite covers primitive and compound ROS values, variable and
-fixed arrays, binary arrays, nested values, time and duration, protocol
-framing, malformed input, standard publish/service round trips, and MAVROS
-message/service schemas.
-
-## Release
-
-Push CI builds and install-checks native `amd64` and `arm64`
-packages and retains trusted build manifests for 14 days. The product
-repository never receives APT credentials and never publishes repository
-indexes. Production APT promotion is performed only by the centralized
-`xgc2-devops` release orchestrator.
-
-- Supported ROS/Ubuntu: Noetic on Focal
-- Architectures: amd64, arm64
-- CI workflows: `.github/workflows/ci.yml` and
-  `.github/workflows/release.yml`
-- APT repository: `https://xgc2.apt.xiaokang.ink`
+The Docker gate builds those dependencies from the exact `v0.5.0-1` source
+tags by default. A release train can instead set
+`XGC2_BOOTSTRAP_COMMON_FROM_GIT=false` and `XGC2_APT_OVERLAY_URL` to consume the
+same exact Debian versions from its signed staging repository. Both paths
+verify the installed package versions before compiling this Adapter.

@@ -1,0 +1,6 @@
+<launch>
+  <test test-name="xgc_ros1_tools_adapter_integration"
+        pkg="xgc_ros1_tools_adapter"
+        type="xgc_ros1_tools_adapter_integration_tests"
+        time-limit="120.0"/>
+</launch>

@@ -55,13 +55,14 @@ def write_json(path: Path, payload: dict[str, Any]) -> None:
     )
 
 
-def validate_deb(path: Path, declared: dict[str, Any]) -> None:
+def validate_deb(path: Path, declared: dict[str, Any]) -> dict[str, Any]:
     actual = deb_metadata(path)
     key_map = {"file": "filename", "size": "size_bytes"}
     for key in ("file", "package", "version", "architecture", "sha256", "size"):
         actual_key = key_map.get(key, key)
         if declared.get(key) != actual[actual_key]:
             raise ValueError(f"{path}: debs[].{key} mismatch")
+    return actual
 
 
 def find_deb(root: Path, filename: str, *, near: Path | None = None) -> Path:
@@ -97,12 +98,22 @@ def local_product_version() -> str:
 
 def create_build(args: argparse.Namespace) -> None:
     debs = sorted(Path(args.deb_dir).rglob("*.deb"))
-    if not debs:
-        raise ValueError(f"no debs found below {args.deb_dir}")
+    if len(debs) != 1:
+        raise ValueError(
+            f"expected exactly one Deb below {args.deb_dir}, found {len(debs)}"
+        )
     output = Path(args.output_dir)
     entries = []
     for deb in debs:
         meta = deb_metadata(deb)
+        if meta["package"] != args.expected_package:
+            raise ValueError(
+                f"{deb}: package {meta['package']} != expected {args.expected_package}"
+            )
+        if meta["version"] != args.product_version:
+            raise ValueError(
+                f"{deb}: version {meta['version']} != expected {args.product_version}"
+            )
         if meta["architecture"] not in (args.architecture, "all"):
             raise ValueError(
                 f"{deb}: architecture is not compatible with {args.architecture}"
@@ -165,11 +176,24 @@ def verify_build(args: argparse.Namespace) -> None:
         if args.architecture and manifest.get("architecture") != args.architecture:
             continue
         deb_entries = manifest.get("debs")
-        if not isinstance(deb_entries, list) or not deb_entries:
-            raise ValueError(f"{manifest_path}: debs must be a non-empty list")
+        if not isinstance(deb_entries, list) or len(deb_entries) != 1:
+            raise ValueError(f"{manifest_path}: debs must contain exactly one entry")
         for declared in deb_entries:
+            if not isinstance(declared, dict):
+                raise ValueError(f"{manifest_path}: deb entry must be an object")
             deb = find_deb(root, str(declared.get("file", "")), near=manifest_path)
-            validate_deb(deb, declared)
+            actual = validate_deb(deb, declared)
+            if actual["package"] != args.expected_package:
+                raise ValueError(
+                    f"{deb}: package {actual['package']} != expected {args.expected_package}"
+                )
+            if actual["version"] != expected_version:
+                raise ValueError(
+                    f"{deb}: version {actual['version']} != expected {expected_version}"
+                )
+            manifest_architecture = str(manifest.get("architecture", ""))
+            if actual["architecture"] not in (manifest_architecture, "all"):
+                raise ValueError(f"{deb}: architecture does not match build manifest")
             candidates.append((manifest_path, manifest, deb))
     if not candidates:
         raise ValueError("trusted run has no matching, valid build manifest")
@@ -193,6 +217,7 @@ def parser() -> argparse.ArgumentParser:
     build.add_argument("--deb-dir", required=True)
     build.add_argument("--output-dir", required=True)
     build.add_argument("--product", required=True)
+    build.add_argument("--expected-package", required=True)
     build.add_argument("--product-version", required=True)
     build.add_argument("--distribution", required=True)
     build.add_argument("--architecture", required=True)
@@ -207,6 +232,7 @@ def parser() -> argparse.ArgumentParser:
     verify.add_argument("--deb-output-dir", required=True)
     verify.add_argument("--manifest-output-dir", required=True)
     verify.add_argument("--product", required=True)
+    verify.add_argument("--expected-package", required=True)
     verify.add_argument("--product-version")
     verify.add_argument("--distribution", required=True)
     verify.add_argument("--architecture")

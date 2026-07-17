@@ -18,15 +18,21 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-for tool in catkin_make clang-format clang-tidy rsync; do
+for tool in catkin_make clang-format clang-tidy python3 rsync; do
   command -v "${tool}" >/dev/null || {
     echo "missing required tool: ${tool}" >&2
     exit 1
   }
 done
 
+"${REPO_ROOT}/.xgc2/scripts/check_package_compliance.sh"
+
+for schema in "${REPO_ROOT}"/schemas/*.schema.json; do
+  python3 -m json.tool "${schema}" >/dev/null
+done
+
 mapfile -t format_files < <(
-  find "${REPO_ROOT}/src/xgc_ros1_automation_gateway" -type f \
+  find "${REPO_ROOT}/src/xgc_ros1_tools_adapter" -type f \
     \( -name "*.cpp" -o -name "*.h" -o -name "*.hpp" \) -print | sort
 )
 if [[ "${#format_files[@]}" -eq 0 ]]; then
@@ -56,7 +62,7 @@ catkin_make \
   -DCMAKE_BUILD_TYPE=RelWithDebInfo
 
 mapfile -t tidy_files < <(
-  find "${WORK_DIR}/src/xgc_ros1_automation_gateway" -type f \
+  find "${WORK_DIR}/src/xgc_ros1_tools_adapter" -type f \
     -name "*.cpp" -print | sort
 )
 for file in "${tidy_files[@]}"; do
