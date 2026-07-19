@@ -50,11 +50,9 @@ for dependency in \
     exit 1
   }
 done
-grep -Fq \
-  "libxgc2-adapter-runtime-client-dev (= ${EXPECTED_ADAPTER_RUNTIME_CLIENT_DEB_VERSION})" \
+grep -Fq "libxgc2-adapter-runtime-client-dev (= ${EXPECTED_ADAPTER_RUNTIME_CLIENT_DEB_VERSION})" \
   <<<"${depends}"
-grep -Fq \
-  "xgc2-protobuf-dev (= ${EXPECTED_XGC2_PROTOBUF_DEB_VERSION})" \
+grep -Fq "xgc2-protobuf-dev (= ${EXPECTED_XGC2_PROTOBUF_DEB_VERSION})" \
   <<<"${depends}"
 
 # shellcheck disable=SC1090
