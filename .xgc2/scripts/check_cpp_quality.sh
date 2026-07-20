@@ -25,22 +25,6 @@ for tool in catkin_make clang-format clang-tidy python3 rsync; do
   }
 done
 
-"${REPO_ROOT}/.xgc2/scripts/check_package_compliance.sh"
-
-for schema in "${REPO_ROOT}"/schemas/*.schema.json; do
-  python3 -m json.tool "${schema}" >/dev/null
-done
-
-mapfile -t format_files < <(
-  find "${REPO_ROOT}/src/xgc_ros1_tools_adapter" -type f \
-    \( -name "*.cpp" -o -name "*.h" -o -name "*.hpp" \) -print | sort
-)
-if [[ "${#format_files[@]}" -eq 0 ]]; then
-  echo "no C++ files found" >&2
-  exit 1
-fi
-clang-format --dry-run --Werror --style=Google "${format_files[@]}"
-
 rm -rf "${WORK_DIR}"
 mkdir -p "${WORK_DIR}"
 rsync -a --delete \
@@ -53,6 +37,22 @@ rsync -a --delete \
   --exclude install \
   --exclude install-root \
   "${REPO_ROOT}/" "${WORK_DIR}/"
+
+"${WORK_DIR}/.xgc2/scripts/check_package_compliance.sh"
+
+for schema in "${WORK_DIR}"/schemas/*.schema.json; do
+  python3 -m json.tool "${schema}" >/dev/null
+done
+
+mapfile -t format_files < <(
+  find "${WORK_DIR}/src/xgc_ros1_tools_adapter" -type f \
+    \( -name "*.cpp" -o -name "*.h" -o -name "*.hpp" \) -print | sort
+)
+if [[ "${#format_files[@]}" -eq 0 ]]; then
+  echo "no C++ files found" >&2
+  exit 1
+fi
+clang-format --dry-run --Werror --style=Google "${format_files[@]}"
 
 # shellcheck disable=SC1091
 source /opt/ros/noetic/setup.bash
