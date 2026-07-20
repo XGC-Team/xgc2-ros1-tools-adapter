@@ -9,6 +9,12 @@ EXPECTED_PROTOBUF_GIT_TAG="v0.5.0-1"
 EXPECTED_RUNTIME_GIT_TAG="v0.5.0-2"
 BOOTSTRAP_SCRIPT="${SCRIPT_DIR}/bootstrap_common_dependencies.sh"
 PACKAGE_SCRIPT="${SCRIPT_DIR}/package_debs.sh"
+temporary="$(mktemp -d)"
+
+cleanup() {
+  rm -rf "${temporary}"
+}
+trap cleanup EXIT
 
 for tool in bash python3 rg shellcheck; do
   command -v "${tool}" >/dev/null || {
@@ -111,7 +117,7 @@ for script in "${REPO_ROOT}"/.xgc2/scripts/*.sh; do
   bash -n "${script}"
 done
 shellcheck "${REPO_ROOT}"/.xgc2/scripts/*.sh
-python3 -m py_compile \
+PYTHONPYCACHEPREFIX="${temporary}/pycache" python3 -m py_compile \
   "${REPO_ROOT}/tools/generate_contract_metadata.py" \
   "${REPO_ROOT}/tools/generate_runtime_manifests.py" \
   "${REPO_ROOT}/tools/verify_runtime_manifests.py" \
@@ -138,12 +144,6 @@ PY
 for schema in "${REPO_ROOT}"/schemas/*.schema.json; do
   python3 -m json.tool "${schema}" >/dev/null
 done
-
-temporary="$(mktemp -d)"
-cleanup() {
-  rm -rf "${temporary}"
-}
-trap cleanup EXIT
 
 removed_deb_version="0.""4.0-1~focal"
 if ADAPTER_RUNTIME_CLIENT_DEB_VERSION="${removed_deb_version}" \
