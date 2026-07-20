@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-EXPECTED_ADAPTER_RUNTIME_CLIENT_DEB_VERSION="0.5.0-1~focal"
+EXPECTED_ADAPTER_RUNTIME_CLIENT_DEB_VERSION="0.5.0-2~focal"
 EXPECTED_XGC2_PROTOBUF_DEB_VERSION="0.5.0-1~focal"
 EXPECTED_XGC2_PROTOBUF_GIT_TAG="v0.5.0-1"
-EXPECTED_XGC2_ADAPTER_RUNTIME_CLIENT_GIT_TAG="v0.5.0-1"
+EXPECTED_XGC2_ADAPTER_RUNTIME_CLIENT_GIT_TAG="v0.5.0-2"
 
-ADAPTER_RUNTIME_CLIENT_DEB_VERSION="${ADAPTER_RUNTIME_CLIENT_DEB_VERSION:-${EXPECTED_ADAPTER_RUNTIME_CLIENT_DEB_VERSION}}"
-XGC2_PROTOBUF_DEB_VERSION="${XGC2_PROTOBUF_DEB_VERSION:-${EXPECTED_XGC2_PROTOBUF_DEB_VERSION}}"
+ADAPTER_RUNTIME_CLIENT_DEB_VERSION="${ADAPTER_RUNTIME_CLIENT_DEB_VERSION:-}"
+XGC2_PROTOBUF_DEB_VERSION="${XGC2_PROTOBUF_DEB_VERSION:-}"
 XGC2_PROTOBUF_GIT_TAG="${XGC2_PROTOBUF_GIT_TAG:-${EXPECTED_XGC2_PROTOBUF_GIT_TAG}}"
 XGC2_ADAPTER_RUNTIME_CLIENT_GIT_TAG="${XGC2_ADAPTER_RUNTIME_CLIENT_GIT_TAG:-${EXPECTED_XGC2_ADAPTER_RUNTIME_CLIENT_GIT_TAG}}"
 XGC2_PROTOBUF_GIT_URL="${XGC2_PROTOBUF_GIT_URL:-https://github.com/lxk36/xgc2-protobuf.git}"
@@ -34,23 +34,6 @@ require_exact() {
   fi
 }
 
-require_exact \
-  "ADAPTER_RUNTIME_CLIENT_DEB_VERSION" \
-  "${ADAPTER_RUNTIME_CLIENT_DEB_VERSION}" \
-  "${EXPECTED_ADAPTER_RUNTIME_CLIENT_DEB_VERSION}"
-require_exact \
-  "XGC2_PROTOBUF_DEB_VERSION" \
-  "${XGC2_PROTOBUF_DEB_VERSION}" \
-  "${EXPECTED_XGC2_PROTOBUF_DEB_VERSION}"
-require_exact \
-  "XGC2_PROTOBUF_GIT_TAG" \
-  "${XGC2_PROTOBUF_GIT_TAG}" \
-  "${EXPECTED_XGC2_PROTOBUF_GIT_TAG}"
-require_exact \
-  "XGC2_ADAPTER_RUNTIME_CLIENT_GIT_TAG" \
-  "${XGC2_ADAPTER_RUNTIME_CLIENT_GIT_TAG}" \
-  "${EXPECTED_XGC2_ADAPTER_RUNTIME_CLIENT_GIT_TAG}"
-
 case "${XGC2_BOOTSTRAP_COMMON_FROM_GIT}" in
   true|false) ;;
   *)
@@ -60,6 +43,25 @@ case "${XGC2_BOOTSTRAP_COMMON_FROM_GIT}" in
 esac
 
 if [[ "${XGC2_BOOTSTRAP_COMMON_FROM_GIT}" == "true" ]]; then
+  ADAPTER_RUNTIME_CLIENT_DEB_VERSION="${ADAPTER_RUNTIME_CLIENT_DEB_VERSION:-${EXPECTED_ADAPTER_RUNTIME_CLIENT_DEB_VERSION}}"
+  XGC2_PROTOBUF_DEB_VERSION="${XGC2_PROTOBUF_DEB_VERSION:-${EXPECTED_XGC2_PROTOBUF_DEB_VERSION}}"
+  require_exact \
+    "ADAPTER_RUNTIME_CLIENT_DEB_VERSION" \
+    "${ADAPTER_RUNTIME_CLIENT_DEB_VERSION}" \
+    "${EXPECTED_ADAPTER_RUNTIME_CLIENT_DEB_VERSION}"
+  require_exact \
+    "XGC2_PROTOBUF_DEB_VERSION" \
+    "${XGC2_PROTOBUF_DEB_VERSION}" \
+    "${EXPECTED_XGC2_PROTOBUF_DEB_VERSION}"
+  require_exact \
+    "XGC2_PROTOBUF_GIT_TAG" \
+    "${XGC2_PROTOBUF_GIT_TAG}" \
+    "${EXPECTED_XGC2_PROTOBUF_GIT_TAG}"
+  require_exact \
+    "XGC2_ADAPTER_RUNTIME_CLIENT_GIT_TAG" \
+    "${XGC2_ADAPTER_RUNTIME_CLIENT_GIT_TAG}" \
+    "${EXPECTED_XGC2_ADAPTER_RUNTIME_CLIENT_GIT_TAG}"
+
   apt-get install -y --no-install-recommends \
     build-essential \
     cmake \
@@ -106,8 +108,21 @@ if [[ "${XGC2_BOOTSTRAP_COMMON_FROM_GIT}" == "true" ]]; then
   XGC2_ADAPTER_RUNTIME_DEB_OUTPUT_DIR="${BOOTSTRAP_WORK_DIR}/debs/client" \
     "${BOOTSTRAP_WORK_DIR}/adapter-runtime-client-cpp/.xgc2/scripts/build_deb.sh"
   apt-get install -y \
+    "${BOOTSTRAP_WORK_DIR}"/debs/client/libxgc2-adapter-runtime-client1_*.deb \
     "${BOOTSTRAP_WORK_DIR}"/debs/client/libxgc2-adapter-runtime-client-dev_*.deb
 else
+  apt_candidate_version() {
+    local package="$1"
+    local candidate
+    candidate="$(apt-cache policy "${package}" | awk '/Candidate:/ {print $2; exit}')"
+    if [[ -z "${candidate}" || "${candidate}" == "(none)" ]]; then
+      echo "APT has no candidate for ${package}" >&2
+      exit 1
+    fi
+    printf '%s\n' "${candidate}"
+  }
+  ADAPTER_RUNTIME_CLIENT_DEB_VERSION="${ADAPTER_RUNTIME_CLIENT_DEB_VERSION:-$(apt_candidate_version libxgc2-adapter-runtime-client-dev)}"
+  XGC2_PROTOBUF_DEB_VERSION="${XGC2_PROTOBUF_DEB_VERSION:-$(apt_candidate_version xgc2-protobuf-dev)}"
   apt-get install -y \
     "xgc2-protobuf-dev=${XGC2_PROTOBUF_DEB_VERSION}" \
     "libxgc2-adapter-runtime-client-dev=${ADAPTER_RUNTIME_CLIENT_DEB_VERSION}"
@@ -116,15 +131,22 @@ fi
 installed_client_version="$(
   dpkg-query -W -f='${Version}' libxgc2-adapter-runtime-client-dev
 )"
+installed_runtime_version="$(
+  dpkg-query -W -f='${Version}' libxgc2-adapter-runtime-client1
+)"
 installed_protobuf_version="$(dpkg-query -W -f='${Version}' xgc2-protobuf-dev)"
 require_exact \
   "installed Adapter Runtime client" \
   "${installed_client_version}" \
-  "${EXPECTED_ADAPTER_RUNTIME_CLIENT_DEB_VERSION}"
+  "${ADAPTER_RUNTIME_CLIENT_DEB_VERSION}"
+require_exact \
+  "installed Adapter Runtime ABI" \
+  "${installed_runtime_version}" \
+  "${ADAPTER_RUNTIME_CLIENT_DEB_VERSION}"
 require_exact \
   "installed XGC2 protobuf" \
   "${installed_protobuf_version}" \
-  "${EXPECTED_XGC2_PROTOBUF_DEB_VERSION}"
+  "${XGC2_PROTOBUF_DEB_VERSION}"
 
 version_header="/usr/include/xgc2/adapter_runtime/version.hpp"
 test -f "${version_header}"

@@ -16,10 +16,7 @@ product_version() {
 }
 
 VERSION="${PACKAGE_VERSION:-$(product_version)}"
-EXPECTED_ADAPTER_RUNTIME_CLIENT_DEB_VERSION="0.5.0-1~focal"
-EXPECTED_XGC2_PROTOBUF_DEB_VERSION="0.5.0-1~focal"
-ADAPTER_RUNTIME_CLIENT_DEB_VERSION="${ADAPTER_RUNTIME_CLIENT_DEB_VERSION:-${EXPECTED_ADAPTER_RUNTIME_CLIENT_DEB_VERSION}}"
-XGC2_PROTOBUF_DEB_VERSION="${XGC2_PROTOBUF_DEB_VERSION:-${EXPECTED_XGC2_PROTOBUF_DEB_VERSION}}"
+ADAPTER_RUNTIME_ABI_PACKAGE="libxgc2-adapter-runtime-client1"
 REMOVED_PACKAGE="ros-${ROS_DISTRO}-xgc2-ros1-automation-"'gate'"way"
 
 while [[ $# -gt 0 ]]; do
@@ -47,17 +44,6 @@ if [[ -z "${VERSION}" ]]; then
   echo "package version is missing" >&2
   exit 1
 fi
-if [[ "${ADAPTER_RUNTIME_CLIENT_DEB_VERSION}" != \
-      "${EXPECTED_ADAPTER_RUNTIME_CLIENT_DEB_VERSION}" ]]; then
-  echo "Adapter Runtime client must be exactly ${EXPECTED_ADAPTER_RUNTIME_CLIENT_DEB_VERSION}" >&2
-  exit 1
-fi
-if [[ "${XGC2_PROTOBUF_DEB_VERSION}" != \
-      "${EXPECTED_XGC2_PROTOBUF_DEB_VERSION}" ]]; then
-  echo "XGC2 protobuf must be exactly ${EXPECTED_XGC2_PROTOBUF_DEB_VERSION}" >&2
-  exit 1
-fi
-
 ARCH="$(dpkg --print-architecture)"
 PREFIX="/opt/ros/${ROS_DISTRO}"
 PREFIX_ROOT="${INSTALL_ROOT}${PREFIX}"
@@ -67,6 +53,17 @@ cleanup() {
   rm -rf "${BUILD_DIR}"
 }
 trap cleanup EXIT
+
+mkdir -p "${BUILD_DIR}/debian"
+cat > "${BUILD_DIR}/debian/control" <<EOF
+Source: xgc2-ros1-tools-adapter
+Section: misc
+Priority: optional
+Maintainer: XGC2 <lxk36@users.noreply.github.com>
+
+Package: ${PACKAGE}
+Architecture: any
+EOF
 
 mkdir -p "${OUTPUT_DIR}"
 rm -f "${OUTPUT_DIR}/${PACKAGE}_"*.deb
@@ -108,6 +105,26 @@ test -f "${share}/package.xml" || {
 test -f "${pkg_root}/usr/share/xgc2/adapter-definitions/xgc2-ros1-tools-adapter.json"
 test -f "${pkg_root}/usr/share/xgc2/process-definitions/xgc2-ros1-tools-adapter.json"
 
+shlibdeps_output="$(
+  cd "${BUILD_DIR}"
+  dpkg-shlibdeps -O "-e${executable}" "-e${service_helper}"
+)"
+shlibdeps="${shlibdeps_output#shlibs:Depends=}"
+if [[ "${shlibdeps}" == "${shlibdeps_output}" || -z "${shlibdeps}" ]]; then
+  echo "dpkg-shlibdeps did not produce executable dependencies" >&2
+  exit 1
+fi
+if ! grep -Eq "(^|, )${ADAPTER_RUNTIME_ABI_PACKAGE}( |[(])" \
+    <<<"${shlibdeps}"; then
+  echo "shlibs dependencies do not include ${ADAPTER_RUNTIME_ABI_PACKAGE}" >&2
+  exit 1
+fi
+if grep -Eq '(^|, )(libxgc2-adapter-runtime-client-dev|xgc2-protobuf-dev)( |[(,]|$)' \
+    <<<"${shlibdeps}"; then
+  echo "shlibs dependencies leaked a build-only XGC2 package" >&2
+  exit 1
+fi
+
 mkdir -p "${pkg_root}/DEBIAN" "${pkg_root}/usr/share/doc/${PACKAGE}"
 cat > "${pkg_root}/DEBIAN/control" <<EOF
 Package: ${PACKAGE}
@@ -116,7 +133,7 @@ Section: misc
 Priority: optional
 Architecture: ${ARCH}
 Maintainer: XGC2 <lxk36@users.noreply.github.com>
-Depends: libjsoncpp1, libxgc2-adapter-runtime-client-dev (= ${ADAPTER_RUNTIME_CLIENT_DEB_VERSION}), xgc2-protobuf-dev (= ${XGC2_PROTOBUF_DEB_VERSION}), ros-noetic-ros-babel-fish, ros-noetic-roscpp, ros-noetic-roslib, ros-noetic-std-msgs, ros-noetic-std-srvs
+Depends: ${shlibdeps}, libjsoncpp1, ros-noetic-ros-babel-fish, ros-noetic-roscpp, ros-noetic-roslib, ros-noetic-std-msgs, ros-noetic-std-srvs
 Conflicts: ${REMOVED_PACKAGE}
 Replaces: ${REMOVED_PACKAGE}
 Description: XGC2 ROS1 tools Adapter Runtime application

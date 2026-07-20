@@ -47,11 +47,11 @@ permissions:
 env:
   XGC2_APT_OVERLAY_URL: ${{ inputs.apt_overlay_url }}
   XGC2_DEPENDENCY_SET_DIGEST: ${{ inputs.dependency_set_digest }}
-  ADAPTER_RUNTIME_CLIENT_DEB_VERSION: 0.5.0-1~focal
-  XGC2_PROTOBUF_DEB_VERSION: 0.5.0-1~focal
+  ADAPTER_RUNTIME_CLIENT_DEB_VERSION: ${{ inputs.apt_overlay_url == '' && '0.5.0-2~focal' || '' }}
+  XGC2_PROTOBUF_DEB_VERSION: ${{ inputs.apt_overlay_url == '' && '0.5.0-1~focal' || '' }}
   XGC2_BOOTSTRAP_COMMON_FROM_GIT: ${{ inputs.apt_overlay_url == '' && 'true' || 'false' }}
   XGC2_PROTOBUF_GIT_TAG: v0.5.0-1
-  XGC2_ADAPTER_RUNTIME_CLIENT_GIT_TAG: v0.5.0-1
+  XGC2_ADAPTER_RUNTIME_CLIENT_GIT_TAG: v0.5.0-2
 
 jobs:
   prepare-contract:

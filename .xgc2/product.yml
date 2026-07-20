@@ -1,7 +1,7 @@
 schema: xgc2.product.v1
 id: xgc2-ros1-tools-adapter
 name: XGC2 ROS1 Tools Adapter
-version: 0.1.2-1
+version: 0.1.2-2
 kind: ros1-apt
 summary: Generic typed ROS1 topic-publish and service-call capabilities provided
   as an XGC2 Adapter Runtime application.
@@ -24,8 +24,7 @@ apt:
     - ros-noetic-xgc2-ros1-tools-adapter
   depends:
     - libjsoncpp1
-    - libxgc2-adapter-runtime-client-dev
-    - xgc2-protobuf-dev
+    - libxgc2-adapter-runtime-client1
     - ros-noetic-ros-babel-fish
     - ros-noetic-roscpp
     - ros-noetic-roslib
@@ -46,8 +45,9 @@ usage:
     Core or Agent supervises one process per ROS1 native context and supplies a
     mode-0600 binary AdapterProcessBootstrap. The process exposes no listener
     other than its outbound connection to the target-local Adapter Runtime.
-    Release packages require the 0.5.0 Runtime client ABI and matching 0.5.0
-    XGC2 protocol package exactly.
+    Builds require the exact 0.5.0 SDK and schema inputs. Installed applications
+    require only the ABI-1 Runtime shared-library package; SDK headers and schema
+    sources do not participate in the deployment dependency graph.
 
 ownership:
   paths:
@@ -62,3 +62,9 @@ release:
   ref: noetic
   workflow: release.yml
   ci_workflow: ci.yml
+  requires:
+    - libxgc2-adapter-runtime-client-dev
+    - xgc2-protobuf
+  dependency_policy:
+    libxgc2-adapter-runtime-client-dev: verify
+    xgc2-protobuf: verify

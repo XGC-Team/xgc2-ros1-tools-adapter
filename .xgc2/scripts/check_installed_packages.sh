@@ -9,27 +9,17 @@ EXECUTABLE="${PREFIX}/lib/${ROS_PACKAGE}/${ROS_PACKAGE}_node"
 SERVICE_HELPER="${PREFIX}/lib/${ROS_PACKAGE}/${ROS_PACKAGE}_service_helper"
 ADAPTER_MANIFEST="/usr/share/xgc2/adapter-definitions/xgc2-ros1-tools-adapter.json"
 PROCESS_MANIFEST="/usr/share/xgc2/process-definitions/xgc2-ros1-tools-adapter.json"
-EXPECTED_ADAPTER_RUNTIME_CLIENT_DEB_VERSION="0.5.0-1~focal"
-EXPECTED_XGC2_PROTOBUF_DEB_VERSION="0.5.0-1~focal"
-ADAPTER_RUNTIME_CLIENT_DEB_VERSION="${ADAPTER_RUNTIME_CLIENT_DEB_VERSION:-${EXPECTED_ADAPTER_RUNTIME_CLIENT_DEB_VERSION}}"
-XGC2_PROTOBUF_DEB_VERSION="${XGC2_PROTOBUF_DEB_VERSION:-${EXPECTED_XGC2_PROTOBUF_DEB_VERSION}}"
+ADAPTER_RUNTIME_CLIENT_DEB_VERSION="${ADAPTER_RUNTIME_CLIENT_DEB_VERSION:-$(
+  dpkg-query -W -f='${Version}' libxgc2-adapter-runtime-client1
+)}"
 REMOVED_PACKAGE="ros-${ROS_DISTRO}-xgc2-ros1-automation-"'gate'"way"
 REMOVED_ROS_PACKAGE="xgc_ros1_automation_"'gate'"way"
 REMOVED_DEFINITION="xgc2-ros1-automation-"'gate'"way"
 
-test "${ADAPTER_RUNTIME_CLIENT_DEB_VERSION}" = \
-  "${EXPECTED_ADAPTER_RUNTIME_CLIENT_DEB_VERSION}"
-test "${XGC2_PROTOBUF_DEB_VERSION}" = \
-  "${EXPECTED_XGC2_PROTOBUF_DEB_VERSION}"
-
 dpkg -s "${PACKAGE}" >/dev/null
-dpkg -s libxgc2-adapter-runtime-client-dev >/dev/null
-dpkg -s xgc2-protobuf-dev >/dev/null
-test "$(dpkg-query -W -f='${Version}' libxgc2-adapter-runtime-client-dev)" = \
-  "${EXPECTED_ADAPTER_RUNTIME_CLIENT_DEB_VERSION}"
-test "$(dpkg-query -W -f='${Version}' xgc2-protobuf-dev)" = \
-  "${EXPECTED_XGC2_PROTOBUF_DEB_VERSION}"
-test -f /usr/share/xgc2-protobuf/registry/registry.json
+dpkg -s libxgc2-adapter-runtime-client1 >/dev/null
+test "$(dpkg-query -W -f='${Version}' libxgc2-adapter-runtime-client1)" = \
+  "${ADAPTER_RUNTIME_CLIENT_DEB_VERSION}"
 if dpkg -s "${REMOVED_PACKAGE}" >/dev/null 2>&1; then
   echo "removed ROS1 automation package is still installed" >&2
   exit 1
@@ -38,8 +28,7 @@ fi
 depends="$(dpkg-query -W -f='${Depends}' "${PACKAGE}")"
 for dependency in \
   libjsoncpp1 \
-  libxgc2-adapter-runtime-client-dev \
-  xgc2-protobuf-dev \
+  libxgc2-adapter-runtime-client1 \
   ros-noetic-ros-babel-fish \
   ros-noetic-roscpp \
   ros-noetic-roslib \
@@ -50,10 +39,11 @@ for dependency in \
     exit 1
   }
 done
-grep -Fq "libxgc2-adapter-runtime-client-dev (= ${EXPECTED_ADAPTER_RUNTIME_CLIENT_DEB_VERSION})" \
-  <<<"${depends}"
-grep -Fq "xgc2-protobuf-dev (= ${EXPECTED_XGC2_PROTOBUF_DEB_VERSION})" \
-  <<<"${depends}"
+if grep -Eq '(^|, )(libxgc2-adapter-runtime-client-dev|xgc2-protobuf-dev)( |[(,]|$)' \
+    <<<"${depends}"; then
+  echo "runtime package leaked SDK/schema dependencies" >&2
+  exit 1
+fi
 
 # shellcheck disable=SC1090
 source "${PREFIX}/setup.bash"
@@ -86,14 +76,6 @@ if grep -Eq 'libxgc2_adapter_runtime_(client|protocol)[.]so[.]0([[:space:]]|$)' 
   echo "installed Adapter executable links a removed Runtime client ABI" >&2
   exit 1
 fi
-
-version_header="/usr/include/xgc2/adapter_runtime/version.hpp"
-grep -q '^#define XGC2_ADAPTER_RUNTIME_CLIENT_VERSION_MAJOR 0$' \
-  "${version_header}"
-grep -q '^#define XGC2_ADAPTER_RUNTIME_CLIENT_VERSION_MINOR 5$' \
-  "${version_header}"
-grep -q '^#define XGC2_ADAPTER_RUNTIME_CLIENT_ABI_VERSION 1$' \
-  "${version_header}"
 
 "${EXECUTABLE}" --help | grep -q -- '--adapter-bootstrap-file'
 removed_private_flag="--sock""et"

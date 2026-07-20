@@ -9,13 +9,13 @@ WORK_DIR="${WORK_DIR:-${REPO_ROOT}/.work/docker}"
 OUTPUT_DIR="${OUTPUT_DIR:-${REPO_ROOT}/debs}"
 INSTALL_CHECK="${INSTALL_CHECK:-true}"
 XGC2_DEPENDENCY_SET_DIGEST="${XGC2_DEPENDENCY_SET_DIGEST:-}"
-ADAPTER_RUNTIME_CLIENT_DEB_VERSION="${ADAPTER_RUNTIME_CLIENT_DEB_VERSION:-0.5.0-1~focal}"
-XGC2_PROTOBUF_DEB_VERSION="${XGC2_PROTOBUF_DEB_VERSION:-0.5.0-1~focal}"
+ADAPTER_RUNTIME_CLIENT_DEB_VERSION="${ADAPTER_RUNTIME_CLIENT_DEB_VERSION:-}"
+XGC2_PROTOBUF_DEB_VERSION="${XGC2_PROTOBUF_DEB_VERSION:-}"
 XGC2_BOOTSTRAP_COMMON_FROM_GIT="${XGC2_BOOTSTRAP_COMMON_FROM_GIT:-true}"
 XGC2_PROTOBUF_GIT_URL="${XGC2_PROTOBUF_GIT_URL:-https://github.com/lxk36/xgc2-protobuf.git}"
 XGC2_PROTOBUF_GIT_TAG="${XGC2_PROTOBUF_GIT_TAG:-v0.5.0-1}"
 XGC2_ADAPTER_RUNTIME_CLIENT_GIT_URL="${XGC2_ADAPTER_RUNTIME_CLIENT_GIT_URL:-https://github.com/lxk36/xgc2-adapter-runtime-client-cpp.git}"
-XGC2_ADAPTER_RUNTIME_CLIENT_GIT_TAG="${XGC2_ADAPTER_RUNTIME_CLIENT_GIT_TAG:-v0.5.0-1}"
+XGC2_ADAPTER_RUNTIME_CLIENT_GIT_TAG="${XGC2_ADAPTER_RUNTIME_CLIENT_GIT_TAG:-v0.5.0-2}"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -127,6 +127,17 @@ docker run --rm \
 
     /workspace/source/.xgc2/scripts/bootstrap_common_dependencies.sh
 
+    if [[ -z "${ADAPTER_RUNTIME_CLIENT_DEB_VERSION}" ]]; then
+      ADAPTER_RUNTIME_CLIENT_DEB_VERSION="$(
+        dpkg-query -W -f="\${Version}" libxgc2-adapter-runtime-client-dev
+      )"
+    fi
+    if [[ -z "${XGC2_PROTOBUF_DEB_VERSION}" ]]; then
+      XGC2_PROTOBUF_DEB_VERSION="$(
+        dpkg-query -W -f="\${Version}" xgc2-protobuf-dev
+      )"
+    fi
+
     if [[ -n "${XGC2_APT_OVERLAY_URL:-}" &&
           ! "${XGC2_DEPENDENCY_SET_DIGEST:-}" =~ ^[0-9a-f]{64}$ ]]; then
       echo "release-scoped APT build is missing its dependency-set digest" >&2
@@ -136,6 +147,8 @@ docker run --rm \
       echo "Release dependency-set digest: ${XGC2_DEPENDENCY_SET_DIGEST}"
     fi
     test "$(dpkg-query -W -f="\${Version}" libxgc2-adapter-runtime-client-dev)" = \
+      "${ADAPTER_RUNTIME_CLIENT_DEB_VERSION}"
+    test "$(dpkg-query -W -f="\${Version}" libxgc2-adapter-runtime-client1)" = \
       "${ADAPTER_RUNTIME_CLIENT_DEB_VERSION}"
     test "$(dpkg-query -W -f="\${Version}" xgc2-protobuf-dev)" = \
       "${XGC2_PROTOBUF_DEB_VERSION}"

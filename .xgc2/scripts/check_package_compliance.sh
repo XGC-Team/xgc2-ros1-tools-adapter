@@ -3,9 +3,10 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
-EXPECTED_ADAPTER_RUNTIME_CLIENT_DEB_VERSION="0.5.0-1~focal"
+EXPECTED_ADAPTER_RUNTIME_CLIENT_DEB_VERSION="0.5.0-2~focal"
 EXPECTED_XGC2_PROTOBUF_DEB_VERSION="0.5.0-1~focal"
-EXPECTED_COMMON_GIT_TAG="v0.5.0-1"
+EXPECTED_PROTOBUF_GIT_TAG="v0.5.0-1"
+EXPECTED_RUNTIME_GIT_TAG="v0.5.0-2"
 BOOTSTRAP_SCRIPT="${SCRIPT_DIR}/bootstrap_common_dependencies.sh"
 PACKAGE_SCRIPT="${SCRIPT_DIR}/package_debs.sh"
 
@@ -24,9 +25,11 @@ grep -q 'find_package(xgc2_adapter_runtime_client 0.5.0 EXACT REQUIRED CONFIG)' 
   "${REPO_ROOT}/src/xgc_ros1_tools_adapter/CMakeLists.txt"
 grep -q 'xgc2::adapter_runtime_client' \
   "${REPO_ROOT}/src/xgc_ros1_tools_adapter/CMakeLists.txt"
-grep -q '^    - libxgc2-adapter-runtime-client-dev$' \
+grep -q '^    - libxgc2-adapter-runtime-client1$' \
   "${REPO_ROOT}/.xgc2/product.yml"
-grep -q '^    - xgc2-protobuf-dev$' "${REPO_ROOT}/.xgc2/product.yml"
+grep -q '^    libxgc2-adapter-runtime-client-dev: verify$' \
+  "${REPO_ROOT}/.xgc2/product.yml"
+grep -q '^    xgc2-protobuf: verify$' "${REPO_ROOT}/.xgc2/product.yml"
 
 test -x "${BOOTSTRAP_SCRIPT}"
 grep -Fq \
@@ -36,10 +39,10 @@ grep -Fq \
   "EXPECTED_XGC2_PROTOBUF_DEB_VERSION=\"${EXPECTED_XGC2_PROTOBUF_DEB_VERSION}\"" \
   "${BOOTSTRAP_SCRIPT}"
 grep -Fq \
-  "EXPECTED_XGC2_PROTOBUF_GIT_TAG=\"${EXPECTED_COMMON_GIT_TAG}\"" \
+  "EXPECTED_XGC2_PROTOBUF_GIT_TAG=\"${EXPECTED_PROTOBUF_GIT_TAG}\"" \
   "${BOOTSTRAP_SCRIPT}"
 grep -Fq \
-  "EXPECTED_XGC2_ADAPTER_RUNTIME_CLIENT_GIT_TAG=\"${EXPECTED_COMMON_GIT_TAG}\"" \
+  "EXPECTED_XGC2_ADAPTER_RUNTIME_CLIENT_GIT_TAG=\"${EXPECTED_RUNTIME_GIT_TAG}\"" \
   "${BOOTSTRAP_SCRIPT}"
 grep -Fq 'mktemp -d /tmp/xgc2-common-bootstrap.XXXXXX' \
   "${BOOTSTRAP_SCRIPT}"
@@ -48,9 +51,9 @@ if rg -n 'XGC2_COMMON_BOOTSTRAP_WORK_DIR' "${BOOTSTRAP_SCRIPT}"; then
   echo "common dependency bootstrap must not accept a caller-selected delete path" >&2
   exit 1
 fi
-grep -Fq "libxgc2-adapter-runtime-client-dev (= \${ADAPTER_RUNTIME_CLIENT_DEB_VERSION})" \
+grep -Fq 'ADAPTER_RUNTIME_ABI_PACKAGE="libxgc2-adapter-runtime-client1"' \
   "${PACKAGE_SCRIPT}"
-grep -Fq "xgc2-protobuf-dev (= \${XGC2_PROTOBUF_DEB_VERSION})" \
+grep -Fq 'dpkg-shlibdeps -O' \
   "${PACKAGE_SCRIPT}"
 grep -Fq \
   "copy_path \"\${PREFIX_ROOT}/lib/\${ROS_PACKAGE}/\${ROS_PACKAGE}_service_helper\"" \
@@ -124,6 +127,8 @@ if root.findtext("version") != "0.1.2":
 dependencies = {node.text for node in root if node.tag.endswith("depend")}
 if "libxgc2-adapter-runtime-client-dev" not in dependencies:
     raise SystemExit("Adapter Runtime SDK dependency is missing")
+if "libxgc2-adapter-runtime-client1" not in dependencies:
+    raise SystemExit("Adapter Runtime ABI dependency is missing")
 specialized_package = "mav" + "ros"
 if any(specialized_package in dependency for dependency in dependencies if dependency):
     raise SystemExit("ROS Tools must not depend on a robot-specialized package")
@@ -154,21 +159,8 @@ if XGC2_ADAPTER_RUNTIME_CLIENT_GIT_TAG="${removed_git_tag}" \
   echo "common dependency bootstrap accepted a removed Runtime client tag" >&2
   exit 1
 fi
-grep -Fq "must be exactly ${EXPECTED_COMMON_GIT_TAG}" \
+grep -Fq "must be exactly ${EXPECTED_RUNTIME_GIT_TAG}" \
   "${temporary}/old-tag.err"
-
-mkdir -p "${temporary}/missing-install" "${temporary}/package-output"
-if ADAPTER_RUNTIME_CLIENT_DEB_VERSION="${removed_deb_version}" \
-  "${PACKAGE_SCRIPT}" \
-    --install-root "${temporary}/missing-install" \
-    --output-dir "${temporary}/package-output" \
-    >"${temporary}/old-package.out" 2>"${temporary}/old-package.err"; then
-  echo "Debian packager accepted a removed Runtime client version" >&2
-  exit 1
-fi
-grep -Fq \
-  "must be exactly ${EXPECTED_ADAPTER_RUNTIME_CLIENT_DEB_VERSION}" \
-  "${temporary}/old-package.err"
 
 python3 "${REPO_ROOT}/tools/generate_runtime_manifests.py" \
   --executable /bin/true \
