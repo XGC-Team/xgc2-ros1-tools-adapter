@@ -68,6 +68,8 @@ grep -Fq "test -x \"\${SERVICE_HELPER}\"" \
   "${SCRIPT_DIR}/check_installed_packages.sh"
 grep -Fq '/bootstrap_common_dependencies.sh' \
   "${SCRIPT_DIR}/build_debs_in_docker.sh"
+grep -Fq '/workspace/work/.xgc2/scripts/check_package_compliance.sh' \
+  "${SCRIPT_DIR}/build_debs_in_docker.sh"
 grep -Fq '/bootstrap_common_dependencies.sh' \
   "${REPO_ROOT}/.github/workflows/ci.yml"
 grep -Fq '/bootstrap_common_dependencies.sh' \

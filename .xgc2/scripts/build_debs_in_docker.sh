@@ -173,7 +173,7 @@ docker run --rm \
     cd /workspace/work
     source /opt/ros/noetic/setup.bash
 
-    /workspace/source/.xgc2/scripts/check_package_compliance.sh
+    /workspace/work/.xgc2/scripts/check_package_compliance.sh
 
     catkin_make run_tests_xgc_ros1_tools_adapter \
       -DCMAKE_BUILD_TYPE=RelWithDebInfo
