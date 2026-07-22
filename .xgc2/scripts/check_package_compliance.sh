@@ -146,7 +146,8 @@ for schema in "${REPO_ROOT}"/schemas/*.schema.json; do
 done
 
 removed_deb_version="0.""4.0-1~focal"
-if ADAPTER_RUNTIME_CLIENT_DEB_VERSION="${removed_deb_version}" \
+if XGC2_BOOTSTRAP_COMMON_FROM_GIT=true \
+  ADAPTER_RUNTIME_CLIENT_DEB_VERSION="${removed_deb_version}" \
   "${BOOTSTRAP_SCRIPT}" >"${temporary}/old-deb.out" 2>"${temporary}/old-deb.err"; then
   echo "common dependency bootstrap accepted a removed Runtime client version" >&2
   exit 1
@@ -156,7 +157,8 @@ grep -Fq \
   "${temporary}/old-deb.err"
 
 removed_git_tag="v0.""4.0-1"
-if XGC2_ADAPTER_RUNTIME_CLIENT_GIT_TAG="${removed_git_tag}" \
+if XGC2_BOOTSTRAP_COMMON_FROM_GIT=true \
+  XGC2_ADAPTER_RUNTIME_CLIENT_GIT_TAG="${removed_git_tag}" \
   "${BOOTSTRAP_SCRIPT}" >"${temporary}/old-tag.out" 2>"${temporary}/old-tag.err"; then
   echo "common dependency bootstrap accepted a removed Runtime client tag" >&2
   exit 1
