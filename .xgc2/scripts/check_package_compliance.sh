@@ -23,19 +23,56 @@ for tool in bash python3 rg shellcheck; do
   }
 done
 
-grep -q '^id: xgc2-ros1-tools-adapter$' "${REPO_ROOT}/.xgc2/product.yml"
-grep -q '^name: XGC2 ROS1 Tools Adapter$' "${REPO_ROOT}/.xgc2/product.yml"
+python3 - "${REPO_ROOT}/.xgc2/product.yml" <<'PY'
+import sys
+from pathlib import Path
+
+import yaml
+
+product_path = Path(sys.argv[1])
+product = yaml.safe_load(product_path.read_text(encoding="utf-8"))
+if not isinstance(product, dict):
+    raise SystemExit(f"{product_path}: product metadata must be a mapping")
+if product.get("id") != "xgc2-ros1-tools-adapter":
+    raise SystemExit(f"{product_path}: product id mismatch")
+if product.get("name") != "XGC2 ROS1 Tools Adapter":
+    raise SystemExit(f"{product_path}: product name mismatch")
+
+apt = product.get("apt")
+if not isinstance(apt, dict):
+    raise SystemExit(f"{product_path}: apt metadata must be a mapping")
+depends = apt.get("depends")
+if not isinstance(depends, list):
+    raise SystemExit(f"{product_path}: apt.depends must be a list")
+if "libxgc2-adapter-runtime-client2" not in depends:
+    raise SystemExit(
+        f"{product_path}: apt.depends is missing libxgc2-adapter-runtime-client2"
+    )
+
+release = product.get("release")
+if not isinstance(release, dict):
+    raise SystemExit(f"{product_path}: release metadata must be a mapping")
+dependency_policy = release.get("dependency_policy")
+if not isinstance(dependency_policy, dict):
+    raise SystemExit(f"{product_path}: release.dependency_policy must be a mapping")
+expected_policy = {
+    "libxgc2-adapter-runtime-client-dev": "rebuild",
+    "xgc2-protobuf": "rebuild",
+}
+for dependency, expected in expected_policy.items():
+    actual = dependency_policy.get(dependency)
+    if actual != expected:
+        raise SystemExit(
+            f"{product_path}: dependency policy for {dependency} must be {expected!r}, "
+            f"got {actual!r}"
+        )
+PY
 grep -q '<name>xgc_ros1_tools_adapter</name>' \
   "${REPO_ROOT}/src/xgc_ros1_tools_adapter/package.xml"
 grep -q 'find_package(xgc2_adapter_runtime_client 0.6.0 EXACT REQUIRED CONFIG)' \
   "${REPO_ROOT}/src/xgc_ros1_tools_adapter/CMakeLists.txt"
 grep -q 'xgc2::adapter_runtime_client' \
   "${REPO_ROOT}/src/xgc_ros1_tools_adapter/CMakeLists.txt"
-grep -q '^    - libxgc2-adapter-runtime-client2$' \
-  "${REPO_ROOT}/.xgc2/product.yml"
-grep -q '^    libxgc2-adapter-runtime-client-dev: rebuild$' \
-  "${REPO_ROOT}/.xgc2/product.yml"
-grep -q '^    xgc2-protobuf: rebuild$' "${REPO_ROOT}/.xgc2/product.yml"
 
 test -x "${BOOTSTRAP_SCRIPT}"
 grep -Fq \
