@@ -24,7 +24,7 @@ apt:
     - ros-noetic-xgc2-ros1-tools-adapter
   depends:
     - libjsoncpp1
-    - libxgc2-adapter-runtime-client1
+    - libxgc2-adapter-runtime-client2
     - ros-noetic-ros-babel-fish
     - ros-noetic-roscpp
     - ros-noetic-roslib
@@ -45,8 +45,8 @@ usage:
     Core or Agent supervises one process per ROS1 native context and supplies a
     mode-0600 binary AdapterProcessBootstrap. The process exposes no listener
     other than its outbound connection to the target-local Adapter Runtime.
-    Builds require the exact 0.5.0 SDK and schema inputs. Installed applications
-    require only the ABI-1 Runtime shared-library package; SDK headers and schema
+    Builds require the exact 0.6.0 SDK and 0.5.0-3 schema inputs. Installed applications
+    require only the ABI-2 Runtime shared-library package; SDK headers and schema
     sources do not participate in the deployment dependency graph.
 
 ownership:
@@ -66,5 +66,5 @@ release:
     - libxgc2-adapter-runtime-client-dev
     - xgc2-protobuf
   dependency_policy:
-    libxgc2-adapter-runtime-client-dev: verify
-    xgc2-protobuf: verify
+    libxgc2-adapter-runtime-client-dev: rebuild
+    xgc2-protobuf: rebuild

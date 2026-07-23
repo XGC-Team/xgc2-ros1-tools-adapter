@@ -3,10 +3,10 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
-EXPECTED_ADAPTER_RUNTIME_CLIENT_DEB_VERSION="0.5.0-2~focal"
-EXPECTED_XGC2_PROTOBUF_DEB_VERSION="0.5.0-1~focal"
-EXPECTED_PROTOBUF_GIT_TAG="v0.5.0-1"
-EXPECTED_RUNTIME_GIT_TAG="v0.5.0-2"
+EXPECTED_ADAPTER_RUNTIME_CLIENT_DEB_VERSION="0.6.0-1~focal"
+EXPECTED_XGC2_PROTOBUF_DEB_VERSION="0.5.0-3~focal"
+EXPECTED_PROTOBUF_GIT_TAG="v0.5.0-3"
+EXPECTED_RUNTIME_GIT_TAG="v0.6.0-1"
 BOOTSTRAP_SCRIPT="${SCRIPT_DIR}/bootstrap_common_dependencies.sh"
 PACKAGE_SCRIPT="${SCRIPT_DIR}/package_debs.sh"
 temporary="$(mktemp -d)"
@@ -27,15 +27,15 @@ grep -q '^id: xgc2-ros1-tools-adapter$' "${REPO_ROOT}/.xgc2/product.yml"
 grep -q '^name: XGC2 ROS1 Tools Adapter$' "${REPO_ROOT}/.xgc2/product.yml"
 grep -q '<name>xgc_ros1_tools_adapter</name>' \
   "${REPO_ROOT}/src/xgc_ros1_tools_adapter/package.xml"
-grep -q 'find_package(xgc2_adapter_runtime_client 0.5.0 EXACT REQUIRED CONFIG)' \
+grep -q 'find_package(xgc2_adapter_runtime_client 0.6.0 EXACT REQUIRED CONFIG)' \
   "${REPO_ROOT}/src/xgc_ros1_tools_adapter/CMakeLists.txt"
 grep -q 'xgc2::adapter_runtime_client' \
   "${REPO_ROOT}/src/xgc_ros1_tools_adapter/CMakeLists.txt"
-grep -q '^    - libxgc2-adapter-runtime-client1$' \
+grep -q '^    - libxgc2-adapter-runtime-client2$' \
   "${REPO_ROOT}/.xgc2/product.yml"
-grep -q '^    libxgc2-adapter-runtime-client-dev: verify$' \
+grep -q '^    libxgc2-adapter-runtime-client-dev: rebuild$' \
   "${REPO_ROOT}/.xgc2/product.yml"
-grep -q '^    xgc2-protobuf: verify$' "${REPO_ROOT}/.xgc2/product.yml"
+grep -q '^    xgc2-protobuf: rebuild$' "${REPO_ROOT}/.xgc2/product.yml"
 
 test -x "${BOOTSTRAP_SCRIPT}"
 grep -Fq \
@@ -57,7 +57,7 @@ if rg -n 'XGC2_COMMON_BOOTSTRAP_WORK_DIR' "${BOOTSTRAP_SCRIPT}"; then
   echo "common dependency bootstrap must not accept a caller-selected delete path" >&2
   exit 1
 fi
-grep -Fq 'ADAPTER_RUNTIME_ABI_PACKAGE="libxgc2-adapter-runtime-client1"' \
+grep -Fq 'ADAPTER_RUNTIME_ABI_PACKAGE="libxgc2-adapter-runtime-client2"' \
   "${PACKAGE_SCRIPT}"
 grep -Fq 'dpkg-shlibdeps -O' \
   "${PACKAGE_SCRIPT}"
@@ -66,9 +66,9 @@ grep -Fq \
   "${PACKAGE_SCRIPT}"
 grep -Fq "Conflicts: \${REMOVED_PACKAGE}" "${PACKAGE_SCRIPT}"
 grep -Fq "Replaces: \${REMOVED_PACKAGE}" "${PACKAGE_SCRIPT}"
-grep -Fq 'libxgc2_adapter_runtime_client[.]so[.]1' \
+grep -Fq 'libxgc2_adapter_runtime_client[.]so[.]2' \
   "${SCRIPT_DIR}/check_installed_packages.sh"
-grep -Fq 'libxgc2_adapter_runtime_protocol[.]so[.]1' \
+grep -Fq 'libxgc2_adapter_runtime_protocol[.]so[.]2' \
   "${SCRIPT_DIR}/check_installed_packages.sh"
 grep -Fq "test -x \"\${SERVICE_HELPER}\"" \
   "${SCRIPT_DIR}/check_installed_packages.sh"
@@ -135,7 +135,7 @@ if root.findtext("version") != "0.1.2":
 dependencies = {node.text for node in root if node.tag.endswith("depend")}
 if "libxgc2-adapter-runtime-client-dev" not in dependencies:
     raise SystemExit("Adapter Runtime SDK dependency is missing")
-if "libxgc2-adapter-runtime-client1" not in dependencies:
+if "libxgc2-adapter-runtime-client2" not in dependencies:
     raise SystemExit("Adapter Runtime ABI dependency is missing")
 specialized_package = "mav" + "ros"
 if any(specialized_package in dependency for dependency in dependencies if dependency):

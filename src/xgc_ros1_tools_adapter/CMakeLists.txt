@@ -9,7 +9,7 @@ find_package(catkin REQUIRED COMPONENTS
 find_package(PkgConfig REQUIRED)
 find_package(PythonInterp 3 REQUIRED)
 find_package(Threads REQUIRED)
-find_package(xgc2_adapter_runtime_client 0.5.0 EXACT REQUIRED CONFIG)
+find_package(xgc2_adapter_runtime_client 0.6.0 EXACT REQUIRED CONFIG)
 pkg_check_modules(JSONCPP REQUIRED jsoncpp)
 
 catkin_package(

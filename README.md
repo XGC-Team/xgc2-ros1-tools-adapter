@@ -61,10 +61,10 @@ may already have executed the request.
 ## Build
 
 The build requires ROS Noetic, JsonCpp,
-`libxgc2-adapter-runtime-client-dev` `0.5.0-2~focal`, and
-`xgc2-protobuf-dev` `0.5.0-1~focal`. Builds pin both common inputs exactly.
+`libxgc2-adapter-runtime-client-dev` `0.6.0-1~focal`, and
+`xgc2-protobuf-dev` `0.5.0-3~focal`. Builds pin both common inputs exactly.
 The resulting Debian package obtains its lower-bounded
-`libxgc2-adapter-runtime-client1` dependency from shlibs and does not install
+`libxgc2-adapter-runtime-client2` dependency from shlibs and does not install
 the SDK or protocol schema sources on deployed targets.
 
 ```bash
@@ -83,8 +83,8 @@ The quality and package gates are:
   --output-dir "$PWD/debs"
 ```
 
-The Docker gate builds protobuf from `v0.5.0-1` and the Runtime SDK from
-`v0.5.0-2` by default. A release train can instead set
+The Docker gate builds protobuf from `v0.5.0-3` and the Runtime SDK from
+`v0.6.0-1` by default. A release train can instead set
 `XGC2_BOOTSTRAP_COMMON_FROM_GIT=false` and `XGC2_APT_OVERLAY_URL` to consume the
 candidate Debian versions from its signed staging repository. The candidate
 versions are resolved once, then installed and verified exactly before
