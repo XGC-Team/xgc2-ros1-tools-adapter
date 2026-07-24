@@ -42,7 +42,6 @@ usage:
 
     test -f /usr/share/xgc2/adapter-definitions/xgc2-ros1-tools-adapter.json
 
-    test -f /usr/share/xgc2/process-definitions/xgc2-ros1-tools-adapter.json
 
     '
   notes: 'Core or Agent supervises one process per ROS1 native context and supplies
@@ -65,7 +64,6 @@ ownership:
   - /opt/ros/noetic/lib/xgc_ros1_tools_adapter/xgc_ros1_tools_adapter_node
   - /opt/ros/noetic/lib/xgc_ros1_tools_adapter/xgc_ros1_tools_adapter_service_helper
   - /usr/share/xgc2/adapter-definitions/xgc2-ros1-tools-adapter.json
-  - /usr/share/xgc2/process-definitions/xgc2-ros1-tools-adapter.json
 release:
   repository: lxk36/xgc2-ros1-tools-adapter
   ref: noetic
