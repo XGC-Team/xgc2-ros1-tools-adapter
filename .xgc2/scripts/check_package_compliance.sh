@@ -185,6 +185,7 @@ done
 removed_deb_version="0.""4.0-1~focal"
 if XGC2_BOOTSTRAP_COMMON_FROM_GIT=true \
   ADAPTER_RUNTIME_CLIENT_DEB_VERSION="${removed_deb_version}" \
+  XGC2_PROTOBUF_DEB_VERSION="${EXPECTED_XGC2_PROTOBUF_DEB_VERSION}" \
   "${BOOTSTRAP_SCRIPT}" >"${temporary}/old-deb.out" 2>"${temporary}/old-deb.err"; then
   echo "common dependency bootstrap accepted a removed Runtime client version" >&2
   exit 1
@@ -195,6 +196,8 @@ grep -Fq \
 
 removed_git_tag="v0.""4.0-1"
 if XGC2_BOOTSTRAP_COMMON_FROM_GIT=true \
+  ADAPTER_RUNTIME_CLIENT_DEB_VERSION="${EXPECTED_ADAPTER_RUNTIME_CLIENT_DEB_VERSION}" \
+  XGC2_PROTOBUF_DEB_VERSION="${EXPECTED_XGC2_PROTOBUF_DEB_VERSION}" \
   XGC2_ADAPTER_RUNTIME_CLIENT_GIT_TAG="${removed_git_tag}" \
   "${BOOTSTRAP_SCRIPT}" >"${temporary}/old-tag.out" 2>"${temporary}/old-tag.err"; then
   echo "common dependency bootstrap accepted a removed Runtime client tag" >&2
