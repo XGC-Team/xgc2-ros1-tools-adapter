@@ -78,6 +78,8 @@ if grep -Eq 'libxgc2_adapter_runtime_(client|protocol)[.]so[.](0|1)([[:space:]]|
 fi
 
 "${EXECUTABLE}" --help | grep -q -- '--adapter-bootstrap-file'
+rosrun --prefix /bin/echo "${ROS_PACKAGE}" "${ROS_PACKAGE}_node" \
+  | grep -Fq "${EXECUTABLE}"
 removed_private_flag="--sock""et"
 if "${EXECUTABLE}" "${removed_private_flag}" /tmp/forbidden.sock >/dev/null 2>&1; then
   echo "removed private socket argument was accepted" >&2
@@ -120,8 +122,14 @@ require(
 entry = process["definitions"][0]
 require(process["apiVersion"] == "xgc.execution.process/v1", "process API version mismatch")
 require(entry["id"] == "xgc2-ros1-tools-adapter" and entry["internal"] is True, "internal process identity mismatch")
-require(entry["command"]["executable"] == str(executable), "process executable mismatch")
-require(entry["command"]["args"] == ["--adapter-bootstrap-file", "${adapterBootstrapFile}"], "process bootstrap arguments mismatch")
+require(entry["command"]["executable"] == "rosrun", "process executable mismatch")
+require(entry["command"]["args"] == [
+    "xgc_ros1_tools_adapter",
+    "xgc_ros1_tools_adapter_node",
+    "--adapter-bootstrap-file",
+    "${adapterBootstrapFile}",
+], "process bootstrap arguments mismatch")
+require(entry["command"].get("directExecutable", False) is False, "direct executable bypass returned")
 PY
 
 echo "Installed package check passed"
