@@ -41,8 +41,13 @@ contracts. No placeholder digest is installed.
 The process is launched only by the target-local Process Supervisor:
 
 ```text
-xgc_ros1_tools_adapter_node --adapter-bootstrap-file /absolute/private/bootstrap.pb
+rosrun xgc_ros1_tools_adapter xgc_ros1_tools_adapter_node \
+  --adapter-bootstrap-file /absolute/private/bootstrap.pb
 ```
+
+The Supervisor resolves the executable through the installed ROS package
+index. The Adapter remains one supervised process; no launch file owns a
+second lifecycle beneath the Experiment Session.
 
 The binary bootstrap supplies the exact Runtime target, instance/process
 identity, capability contracts, full instance spec, and single-use credential.

@@ -18,7 +18,7 @@ BUILD_SCRIPT = ROOT / ".xgc2/scripts/build_debs_in_docker.sh"
 APT_SCRIPT = ROOT / ".xgc2/scripts/configure_xgc2_apt.sh"
 PRODUCT = "xgc2-ros1-tools-adapter"
 PACKAGE = "ros-noetic-xgc2-ros1-tools-adapter"
-VERSION = "0.1.2-1"
+VERSION = "0.1.3-1"
 
 
 class ArtifactManifestTest(unittest.TestCase):
@@ -135,7 +135,7 @@ class ArtifactManifestTest(unittest.TestCase):
     def test_build_rejects_wrong_package_or_version(self) -> None:
         cases = (
             ("wrong-package", VERSION, "package"),
-            (PACKAGE, "0.1.2-2", "version"),
+            (PACKAGE, "0.1.3-2", "version"),
         )
         for index, (package, version, expected_message) in enumerate(cases):
             with self.subTest(package=package, version=version):

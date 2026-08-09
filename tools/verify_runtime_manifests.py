@@ -40,8 +40,12 @@ def verify(args: argparse.Namespace) -> None:
     process = json.loads(Path(args.process_manifest).read_text(encoding="utf-8"))
     references, expected_contracts = build_contracts(Path(args.schema_dir))
     require(
-        Path(args.artifact_path).is_absolute(),
-        "installed Adapter artifact path must be absolute",
+        re.fullmatch(r"[a-z][a-z0-9_]*", args.ros_package) is not None,
+        "ROS package name must be canonical",
+    )
+    require(
+        re.fullmatch(r"[a-z][a-z0-9_]*", args.ros_executable) is not None,
+        "ROS executable name must be canonical",
     )
     require(
         set(adapter) == {"apiVersion", "adapters"},
@@ -184,9 +188,13 @@ def verify(args: argparse.Namespace) -> None:
                 "additionalProperties": False,
             },
             "command": {
-                "executable": args.artifact_path,
-                "args": ["--adapter-bootstrap-file", "${adapterBootstrapFile}"],
-                "directExecutable": True,
+                "executable": "rosrun",
+                "args": [
+                    args.ros_package,
+                    args.ros_executable,
+                    "--adapter-bootstrap-file",
+                    "${adapterBootstrapFile}",
+                ],
             },
             "readiness": {"kind": "process"},
             "liveness": {"kind": "process"},
@@ -201,7 +209,8 @@ def verify(args: argparse.Namespace) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--executable", required=True)
-    parser.add_argument("--artifact-path", required=True)
+    parser.add_argument("--ros-package", required=True)
+    parser.add_argument("--ros-executable", required=True)
     parser.add_argument("--schema-dir", required=True)
     parser.add_argument("--adapter-manifest", required=True)
     parser.add_argument("--process-manifest", required=True)

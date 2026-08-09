@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
-project(xgc_ros1_tools_adapter VERSION 0.1.2 LANGUAGES CXX)
+project(xgc_ros1_tools_adapter VERSION 0.1.3 LANGUAGES CXX)
 
 find_package(catkin REQUIRED COMPONENTS
   ros_babel_fish
@@ -105,7 +105,8 @@ add_custom_command(
   COMMAND "${PYTHON_EXECUTABLE}"
           "${CMAKE_CURRENT_SOURCE_DIR}/../../tools/generate_runtime_manifests.py"
           --executable "$<TARGET_FILE:${PROJECT_NAME}_node>"
-          --artifact-path "${XGC2_INSTALLED_EXECUTABLE}"
+          --ros-package "${PROJECT_NAME}"
+          --ros-executable "${PROJECT_NAME}_node"
           --schema-dir "${CMAKE_CURRENT_SOURCE_DIR}/../../schemas"
           --version "${PROJECT_VERSION}"
           --adapter-output "${XGC2_ADAPTER_MANIFEST}"
@@ -113,7 +114,8 @@ add_custom_command(
   COMMAND "${PYTHON_EXECUTABLE}"
           "${CMAKE_CURRENT_SOURCE_DIR}/../../tools/verify_runtime_manifests.py"
           --executable "$<TARGET_FILE:${PROJECT_NAME}_node>"
-          --artifact-path "${XGC2_INSTALLED_EXECUTABLE}"
+          --ros-package "${PROJECT_NAME}"
+          --ros-executable "${PROJECT_NAME}_node"
           --schema-dir "${XGC2_SCHEMA_DIR}"
           --adapter-manifest "${XGC2_ADAPTER_MANIFEST}"
           --process-manifest "${XGC2_PROCESS_MANIFEST}"

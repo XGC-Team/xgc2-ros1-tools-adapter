@@ -30,15 +30,14 @@ class RuntimeManifestTest(unittest.TestCase):
         self.root = Path(self.temporary.name)
         self.executable = self.root / "adapter"
         self.executable.write_bytes(b"exact-adapter-binary")
-        self.artifact_path = (
-            "/opt/ros/noetic/lib/xgc_ros1_tools_adapter/"
-            "xgc_ros1_tools_adapter_node"
-        )
+        self.ros_package = "xgc_ros1_tools_adapter"
+        self.ros_executable = "xgc_ros1_tools_adapter_node"
         build_args = argparse.Namespace(
             executable=str(self.executable),
-            artifact_path=self.artifact_path,
+            ros_package=self.ros_package,
+            ros_executable=self.ros_executable,
             schema_dir=str(SCHEMA_DIR),
-            version="0.1.2",
+            version="0.1.3",
         )
         self.adapter, self.process = generate_runtime_manifests.build_manifests(
             build_args
@@ -55,7 +54,8 @@ class RuntimeManifestTest(unittest.TestCase):
         verify_runtime_manifests.verify(
             argparse.Namespace(
                 executable=str(self.executable),
-                artifact_path=self.artifact_path,
+                ros_package=self.ros_package,
+                ros_executable=self.ros_executable,
                 schema_dir=str(SCHEMA_DIR),
                 adapter_manifest=str(adapter_path),
                 process_manifest=str(process_path),
@@ -130,8 +130,10 @@ class RuntimeManifestTest(unittest.TestCase):
                 str(TOOLS_DIR / "verify_runtime_manifests.py"),
                 "--executable",
                 str(self.executable),
-                "--artifact-path",
-                self.artifact_path,
+                "--ros-package",
+                self.ros_package,
+                "--ros-executable",
+                self.ros_executable,
                 "--schema-dir",
                 str(SCHEMA_DIR),
                 "--adapter-manifest",

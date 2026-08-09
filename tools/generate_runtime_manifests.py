@@ -128,8 +128,10 @@ def build_manifests(args: argparse.Namespace) -> tuple[dict[str, Any], dict[str,
     executable = Path(args.executable)
     if not executable.is_file():
         raise ValueError(f"Adapter executable does not exist: {executable}")
-    if not Path(args.artifact_path).is_absolute():
-        raise ValueError("installed Adapter artifact path must be absolute")
+    if not re.fullmatch(r"[a-z][a-z0-9_]*", args.ros_package):
+        raise ValueError("ROS package name must be canonical")
+    if not re.fullmatch(r"[a-z][a-z0-9_]*", args.ros_executable):
+        raise ValueError("ROS executable name must be canonical")
     if not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", args.version):
         raise ValueError("Adapter version must use MAJOR.MINOR.PATCH")
     references, contracts = build_contracts(Path(args.schema_dir))
@@ -186,9 +188,13 @@ def build_manifests(args: argparse.Namespace) -> tuple[dict[str, Any], dict[str,
                     "additionalProperties": False,
                 },
                 "command": {
-                    "executable": args.artifact_path,
-                    "args": ["--adapter-bootstrap-file", "${adapterBootstrapFile}"],
-                    "directExecutable": True,
+                    "executable": "rosrun",
+                    "args": [
+                        args.ros_package,
+                        args.ros_executable,
+                        "--adapter-bootstrap-file",
+                        "${adapterBootstrapFile}",
+                    ],
                 },
                 "readiness": {"kind": "process"},
                 "liveness": {"kind": "process"},
@@ -204,7 +210,8 @@ def build_manifests(args: argparse.Namespace) -> tuple[dict[str, Any], dict[str,
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--executable", required=True)
-    parser.add_argument("--artifact-path", required=True)
+    parser.add_argument("--ros-package", required=True)
+    parser.add_argument("--ros-executable", required=True)
     parser.add_argument("--schema-dir", required=True)
     parser.add_argument("--version", required=True)
     parser.add_argument("--adapter-output", required=True)
