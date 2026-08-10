@@ -167,7 +167,7 @@ import xml.etree.ElementTree as ET
 root = ET.parse(sys.argv[1]).getroot()
 if root.findtext("name") != "xgc_ros1_tools_adapter":
     raise SystemExit("ROS package identity mismatch")
-if root.findtext("version") != "0.1.3":
+if root.findtext("version") != "0.2.0":
     raise SystemExit("ROS package version mismatch")
 dependencies = {node.text for node in root if node.tag.endswith("depend")}
 if "libxgc2-adapter-runtime-client-dev" not in dependencies:
@@ -211,7 +211,7 @@ python3 "${REPO_ROOT}/tools/generate_runtime_manifests.py" \
   --ros-package xgc_ros1_tools_adapter \
   --ros-executable xgc_ros1_tools_adapter_node \
   --schema-dir "${REPO_ROOT}/schemas" \
-  --version 0.1.3 \
+  --version 0.2.0 \
   --adapter-output "${temporary}/adapter.json" \
   --process-output "${temporary}/process.json"
 python3 "${REPO_ROOT}/tools/verify_runtime_manifests.py" \

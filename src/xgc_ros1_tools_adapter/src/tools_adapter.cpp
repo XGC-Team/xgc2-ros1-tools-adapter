@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cerrno>
+#include <cmath>
 #include <cstddef>
 #include <cstdlib>
 #include <cstring>
@@ -24,6 +25,10 @@ namespace xgc_ros1_tools_adapter {
 namespace {
 
 constexpr std::uint32_t kMaximumQueueSize = 10000;
+constexpr std::uint32_t kMaximumPublishCount = 10000;
+constexpr double kMinimumPublishRateHz = 0.1;
+constexpr double kMaximumPublishRateHz = 1000.0;
+constexpr double kMaximumPublishDurationSeconds = 240.0;
 constexpr std::uint32_t kMaximumWaitMilliseconds = 300000;
 constexpr std::size_t kMaximumConfigurationBytes = 16u * 1024u;
 constexpr std::size_t kMaximumMasterUriBytes = 2048;
@@ -110,6 +115,20 @@ std::uint32_t requiredUInt(const Json::Value& request, const std::string& field,
                                           std::to_string(maximum));
   }
   return static_cast<std::uint32_t>(parsed);
+}
+
+double requiredNumber(const Json::Value& request, const std::string& field,
+                      double minimum, double maximum) {
+  if (!request.isMember(field) || !request[field].isNumeric()) {
+    permanentError("invalid_request", field + " must be a number");
+  }
+  const double parsed = request[field].asDouble();
+  if (!std::isfinite(parsed) || parsed < minimum || parsed > maximum) {
+    permanentError("invalid_request", field + " must be between " +
+                                          std::to_string(minimum) + " and " +
+                                          std::to_string(maximum));
+  }
+  return parsed;
 }
 
 void validateAbsoluteRosName(const std::string& value,
@@ -627,8 +646,9 @@ xgc2::adapter_runtime::OperationResult ToolsAdapter::Publish(
     const Json::Value input = parseInput(
         request.input(), schemaReference(contract::kPublish.input_schema),
         contract::kPublish.limits.maximum_request_bytes);
-    rejectUnknownFields(input, {"topic", "messageType", "message", "latch",
-                                "queueSize", "waitForSubscribersMs"});
+    rejectUnknownFields(
+        input, {"topic", "messageType", "message", "publishCount",
+                "publishRateHz", "latch", "queueSize", "waitForSubscribersMs"});
     PublishRequest publish_request;
     publish_request.topic = requiredString(input, "topic");
     publish_request.message_type = requiredString(input, "messageType");
@@ -639,6 +659,17 @@ xgc2::adapter_runtime::OperationResult ToolsAdapter::Publish(
     }
     requireObject(input["message"], "message");
     publish_request.message = input["message"];
+    publish_request.publish_count =
+        requiredUInt(input, "publishCount", 1, kMaximumPublishCount);
+    publish_request.publish_rate_hz = requiredNumber(
+        input, "publishRateHz", kMinimumPublishRateHz, kMaximumPublishRateHz);
+    if (static_cast<double>(publish_request.publish_count - 1u) /
+            publish_request.publish_rate_hz >
+        kMaximumPublishDurationSeconds) {
+      permanentError(
+          "invalid_request",
+          "publishCount and publishRateHz must complete within 240 seconds");
+    }
     publish_request.latch = requiredBool(input, "latch");
     publish_request.queue_size =
         requiredUInt(input, "queueSize", 1, kMaximumQueueSize);
@@ -657,6 +688,7 @@ xgc2::adapter_runtime::OperationResult ToolsAdapter::Publish(
       result["topic"] = published.topic;
       result["messageType"] = published.message_type;
       result["serializedBytes"] = Json::UInt(published.serialized_bytes);
+      result["publishedCount"] = Json::UInt(published.published_count);
       result["subscriberCount"] = Json::UInt(published.subscriber_count);
       return success(result, schemaReference(contract::kPublish.output_schema),
                      contract::kPublish.limits.maximum_response_bytes);

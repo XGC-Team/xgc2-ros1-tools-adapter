@@ -13,8 +13,8 @@ from typing import Any
 
 SCHEMAS = {
     "configuration": (4201, "xgc.ros1.tools.v1.NativeContext", "native-context.schema.json"),
-    "publish_input": (4202, "xgc.ros1.tools.v1.PublishRequest", "publish-request.schema.json"),
-    "publish_output": (4203, "xgc.ros1.tools.v1.PublishResult", "publish-result.schema.json"),
+    "publish_input": (4212, "xgc.ros1.tools.v2.PublishRequest", "publish-request.schema.json"),
+    "publish_output": (4213, "xgc.ros1.tools.v2.PublishResult", "publish-result.schema.json"),
     "service_input": (4204, "xgc.ros1.tools.v1.ServiceCallRequest", "service-call-request.schema.json"),
     "service_output": (4205, "xgc.ros1.tools.v1.ServiceCallResult", "service-call-result.schema.json"),
 }
@@ -87,9 +87,9 @@ def endpoint(
     }
 
 
-def contract(capability_id: str, contract_endpoint: dict[str, Any]) -> dict[str, Any]:
+def contract(capability_id: str, version: int, contract_endpoint: dict[str, Any]) -> dict[str, Any]:
     body = {
-        "ref": {"id": capability_id, "version": 1},
+        "ref": {"id": capability_id, "version": version},
         "endpoints": [contract_endpoint],
     }
     return {
@@ -113,10 +113,12 @@ def build_contracts(
     contracts = [
         contract(
             "xgc.ros1.topic.publish",
+            2,
             endpoint("publish", references["publish_input"], references["publish_output"], 1048576),
         ),
         contract(
             "xgc.ros1.service.call",
+            1,
             endpoint("call", references["service_input"], references["service_output"], 8388608),
         ),
     ]

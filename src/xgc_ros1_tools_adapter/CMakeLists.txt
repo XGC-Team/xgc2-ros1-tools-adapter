@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
-project(xgc_ros1_tools_adapter VERSION 0.1.3 LANGUAGES CXX)
+project(xgc_ros1_tools_adapter VERSION 0.2.0 LANGUAGES CXX)
 
 find_package(catkin REQUIRED COMPONENTS
   ros_babel_fish

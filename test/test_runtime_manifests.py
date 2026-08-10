@@ -37,7 +37,7 @@ class RuntimeManifestTest(unittest.TestCase):
             ros_package=self.ros_package,
             ros_executable=self.ros_executable,
             schema_dir=str(SCHEMA_DIR),
-            version="0.1.3",
+            version="0.2.0",
         )
         self.adapter, self.process = generate_runtime_manifests.build_manifests(
             build_args

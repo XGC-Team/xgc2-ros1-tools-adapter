@@ -124,11 +124,13 @@ TEST(ToolsAdapterIntegration, PublishesTypedJsonMessage) {
   std::mutex mutex;
   std::condition_variable received;
   std::string received_value;
+  std::uint32_t received_count = 0;
   const auto subscriber = node_handle.subscribe<std_msgs::String>(
       "/xgc_ros1_tools_adapter_test/topic", 10,
       [&](const std_msgs::String::ConstPtr& message) {
         std::lock_guard<std::mutex> lock(mutex);
         received_value = message->data;
+        ++received_count;
         received.notify_all();
       });
   ASSERT_TRUE(subscriber);
@@ -139,6 +141,8 @@ TEST(ToolsAdapterIntegration, PublishesTypedJsonMessage) {
     "topic":"/xgc_ros1_tools_adapter_test/topic",
     "messageType":"std_msgs/String",
     "message":{"data":"hello"},
+    "publishCount":3,
+    "publishRateHz":20,
     "latch":false,
     "queueSize":10,
     "waitForSubscribersMs":2000
@@ -152,12 +156,13 @@ TEST(ToolsAdapterIntegration, PublishesTypedJsonMessage) {
   const Json::Value output = parseJson(result.output.value());
   EXPECT_EQ("published", output["event"].asString());
   EXPECT_EQ("std_msgs/String", output["messageType"].asString());
+  EXPECT_EQ(3u, output["publishedCount"].asUInt());
   EXPECT_EQ(schema(contract::kPublish.output_schema).SerializeAsString(),
             result.output.schema().SerializeAsString());
 
   std::unique_lock<std::mutex> lock(mutex);
   ASSERT_TRUE(received.wait_for(lock, std::chrono::seconds(2),
-                                [&] { return !received_value.empty(); }));
+                                [&] { return received_count == 3; }));
   EXPECT_EQ("hello", received_value);
 }
 
@@ -321,6 +326,8 @@ TEST(ToolsAdapterIntegration, RejectsInvocationOutsideCapabilityLifecycle) {
     "topic":"/xgc_ros1_tools_adapter_test/lifecycle",
     "messageType":"std_msgs/String",
     "message":{"data":"must-not-publish"},
+    "publishCount":1,
+    "publishRateHz":1,
     "latch":false,
     "queueSize":10,
     "waitForSubscribersMs":0
@@ -374,6 +381,8 @@ TEST(ToolsAdapterIntegration,
     "topic":"/xgc_ros1_tools_adapter_test/schema_drift",
     "messageType":"std_msgs/String",
     "message":{"data":"must-not-publish"},
+    "publishCount":1,
+    "publishRateHz":1,
     "latch":false,
     "queueSize":10,
     "waitForSubscribersMs":0
@@ -398,6 +407,8 @@ TEST(ToolsAdapterIntegration, StopPublishUnregistersLatchedPublisher) {
     "topic":"/xgc_ros1_tools_adapter_test/stopped_latch",
     "messageType":"std_msgs/String",
     "message":{"data":"stale"},
+    "publishCount":1,
+    "publishRateHz":1,
     "latch":true,
     "queueSize":1,
     "waitForSubscribersMs":0
@@ -427,6 +438,8 @@ TEST(ToolsAdapterIntegration,
     "topic":"/xgc_ros1_tools_adapter_test/failed_wait_lease",
     "messageType":"std_msgs/String",
     "message":{"data":"not-dispatched"},
+    "publishCount":1,
+    "publishRateHz":1,
     "latch":false,
     "queueSize":1,
     "waitForSubscribersMs":100
@@ -443,6 +456,8 @@ TEST(ToolsAdapterIntegration,
     "topic":"/xgc_ros1_tools_adapter_test/failed_wait_lease",
     "messageType":"std_msgs/String",
     "message":{"data":"replacement"},
+    "publishCount":1,
+    "publishRateHz":1,
     "latch":true,
     "queueSize":2,
     "waitForSubscribersMs":0
@@ -530,11 +545,35 @@ TEST(ToolsAdapterIntegration, RejectsOutOfContractEnvelopeFields) {
     "topic":"/legacy",
     "messageType":"std_msgs/String",
     "message":{"data":"legacy"},
+    "publishCount":1,
+    "publishRateHz":1,
     "latch":false,
     "queueSize":10,
     "waitForSubscribersMs":0
   })",
                            contract::kPublish);
+  const auto result =
+      adapter.Publish(request, xgc2::adapter_runtime::CancellationToken());
+  EXPECT_EQ(xgc::adapter::v1::OPERATION_PHASE_FAILED, result.phase);
+  EXPECT_EQ(xgc::adapter::v1::ERROR_CLASS_PERMANENT, result.error.class_());
+  EXPECT_EQ("invalid_request", result.error.code());
+}
+
+TEST(ToolsAdapterIntegration, RejectsPublishScheduleAboveDurationLimit) {
+  auto adapter = createAdapter();
+  activatePublish(&adapter);
+  const auto request = operation(R"({
+    "topic":"/xgc_ros1_tools_adapter_test/oversized_schedule",
+    "messageType":"std_msgs/String",
+    "message":{"data":"must-not-publish"},
+    "publishCount":10000,
+    "publishRateHz":0.1,
+    "latch":false,
+    "queueSize":10,
+    "waitForSubscribersMs":0
+  })",
+                                 contract::kPublish);
+
   const auto result =
       adapter.Publish(request, xgc2::adapter_runtime::CancellationToken());
   EXPECT_EQ(xgc::adapter::v1::OPERATION_PHASE_FAILED, result.phase);
@@ -549,6 +588,8 @@ TEST(ToolsAdapterIntegration, RejectsInvocationForAnotherNativeContext) {
     "topic":"/xgc_ros1_tools_adapter_test/wrong_context",
     "messageType":"std_msgs/String",
     "message":{"data":"must-not-publish"},
+    "publishCount":1,
+    "publishRateHz":1,
     "latch":false,
     "queueSize":10,
     "waitForSubscribersMs":0

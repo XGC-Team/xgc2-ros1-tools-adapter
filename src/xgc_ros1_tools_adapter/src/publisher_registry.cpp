@@ -36,6 +36,28 @@ void requireDispatchAllowed(const PublishRequest& request) {
   }
 }
 
+void requireContinuationAllowed(const PublishRequest& request) {
+  if (cancellationRequested(request)) {
+    uncertainError("publish_cancelled_after_dispatch",
+                   "ROS1 topic publish was cancelled after native dispatch");
+  }
+  if (deadlineExpired(request.deadline_unix_nanos)) {
+    uncertainError(
+        "publish_deadline_after_dispatch",
+        "ROS1 topic publish crossed its deadline after native dispatch");
+  }
+}
+
+void waitUntil(const PublishRequest& request,
+               std::chrono::steady_clock::time_point target) {
+  while (std::chrono::steady_clock::now() < target) {
+    requireContinuationAllowed(request);
+    const auto remaining = target - std::chrono::steady_clock::now();
+    const auto quantum = std::chrono::milliseconds(5);
+    std::this_thread::sleep_for(remaining < quantum ? remaining : quantum);
+  }
+}
+
 }  // namespace
 
 PublisherRegistry::PublisherRegistry(ros::NodeHandle node_handle,
@@ -144,24 +166,34 @@ PublishResult PublisherRegistry::publish(const PublishRequest& request) {
     // leases are removed when their final active caller releases them.
     release(request.topic, selected_entry, true);
     released = true;
-    try {
-      publisher.publish(*serialized);
-    } catch (const std::exception& exception) {
-      uncertainError("publish_dispatch_failed",
-                     "ROS1 topic publish may have been dispatched: " +
-                         std::string(exception.what()));
-    } catch (...) {
-      uncertainError("publish_dispatch_failed",
-                     "ROS1 topic publish may have been dispatched");
-    }
-    if (cancellationRequested(request)) {
-      uncertainError("publish_cancelled_after_dispatch",
-                     "ROS1 topic publish was cancelled after native dispatch");
-    }
-    if (deadlineExpired(request.deadline_unix_nanos)) {
-      uncertainError("publish_deadline_after_dispatch",
-                     "ROS1 topic publish crossed its deadline after native "
-                     "dispatch");
+    const auto interval =
+        std::chrono::duration<double>(1.0 / request.publish_rate_hz);
+    auto next_publish = std::chrono::steady_clock::now();
+    for (std::uint32_t index = 0; index < request.publish_count; ++index) {
+      if (index > 0) {
+        next_publish +=
+            std::chrono::duration_cast<std::chrono::steady_clock::duration>(
+                interval);
+        waitUntil(request, next_publish);
+      }
+      if (!ros::ok()) {
+        uncertainError("ros_shutdown_after_dispatch",
+                       "ROS1 shut down after one or more messages may have "
+                       "been published");
+      }
+      requireContinuationAllowed(request);
+      try {
+        publisher.publish(*serialized);
+      } catch (const std::exception& exception) {
+        uncertainError("publish_dispatch_failed",
+                       "ROS1 topic publish may have been dispatched: " +
+                           std::string(exception.what()));
+      } catch (...) {
+        uncertainError("publish_dispatch_failed",
+                       "ROS1 topic publish may have been dispatched");
+      }
+      ++result.published_count;
+      requireContinuationAllowed(request);
     }
 
     result.subscriber_count = publisher.getNumSubscribers();

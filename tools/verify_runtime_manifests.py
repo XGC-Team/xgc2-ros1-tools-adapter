@@ -121,10 +121,10 @@ def verify(args: argparse.Namespace) -> None:
         "capability manifest differs from repository schemas and policy",
     )
     expected_pairs = {
-        ("xgc.ros1.topic.publish", "publish"),
-        ("xgc.ros1.service.call", "call"),
+        ("xgc.ros1.topic.publish", 2, "publish"),
+        ("xgc.ros1.service.call", 1, "call"),
     }
-    actual_pairs: set[tuple[str, str]] = set()
+    actual_pairs: set[tuple[str, int, str]] = set()
     for contract in manifest["capabilities"]:
         endpoints = sorted(contract["endpoints"], key=lambda item: item["endpointId"])
         body = {"ref": contract["ref"], "endpoints": endpoints}
@@ -134,8 +134,7 @@ def verify(args: argparse.Namespace) -> None:
         )
         require(len(endpoints) == 1, "each ROS1 Tools capability needs one endpoint")
         endpoint = endpoints[0]
-        actual_pairs.add((contract["ref"]["id"], endpoint["endpointId"]))
-        require(contract["ref"]["version"] == 1, "unexpected capability version")
+        actual_pairs.add((contract["ref"]["id"], contract["ref"]["version"], endpoint["endpointId"]))
         require(endpoint["interaction"] == "operation", "unexpected interaction")
         require(endpoint["sideEffect"] == "non-idempotent", "unexpected side effect")
         require(endpoint["idempotency"] == "required", "idempotency must be required")
@@ -144,7 +143,7 @@ def verify(args: argparse.Namespace) -> None:
             endpoint["cancellationSupported"] is True,
             "cancellation must be supported",
         )
-    require(actual_pairs == expected_pairs, "ROS1 Tools capability set mismatch")
+    require(actual_pairs == expected_pairs, "ROS1 Tools capability set/version mismatch")
 
     canonical_capabilities = sorted(
         manifest["capabilities"],

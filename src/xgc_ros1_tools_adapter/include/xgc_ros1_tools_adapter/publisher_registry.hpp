@@ -20,6 +20,8 @@ struct PublishRequest {
   std::string topic;
   std::string message_type;
   Json::Value message;
+  std::uint32_t publish_count{1};
+  double publish_rate_hz{1.0};
   bool latch{false};
   std::uint32_t queue_size{10};
   std::uint32_t wait_for_subscribers_ms{0};
@@ -31,6 +33,7 @@ struct PublishResult {
   std::string topic;
   std::string message_type;
   std::uint32_t serialized_bytes{0};
+  std::uint32_t published_count{0};
   std::uint32_t subscriber_count{0};
 };
 
