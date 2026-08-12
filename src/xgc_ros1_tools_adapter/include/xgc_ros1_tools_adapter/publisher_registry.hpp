@@ -39,11 +39,14 @@ struct PublishResult {
 
 class PublisherRegistry {
  public:
-  PublisherRegistry(ros::NodeHandle node_handle, TypeRegistry& types,
-                    const JsonCodec& codec,
-                    std::size_t maximum_publishers = 128);
+  using MasterGenerationProvider = std::function<std::int64_t()>;
 
-  PublishResult publish(const PublishRequest& request);
+  PublisherRegistry(ros::NodeHandle node_handle, TypeRegistry &types,
+                    const JsonCodec &codec,
+                    std::size_t maximum_publishers = 128,
+                    MasterGenerationProvider master_generation_provider = {});
+
+  PublishResult publish(const PublishRequest &request);
   void clear();
   std::size_t size() const;
 
@@ -57,13 +60,16 @@ class PublisherRegistry {
     bool native_dispatch_committed{false};
   };
 
-  void release(const std::string& topic, const std::shared_ptr<Entry>& entry,
+  void release(const std::string &topic, const std::shared_ptr<Entry> &entry,
                bool native_dispatch_committed);
+  void refreshMasterGeneration();
 
   ros::NodeHandle node_handle_;
-  TypeRegistry& types_;
-  const JsonCodec& codec_;
+  TypeRegistry &types_;
+  const JsonCodec &codec_;
   const std::size_t maximum_publishers_;
+  MasterGenerationProvider master_generation_provider_;
+  std::int64_t master_generation_{0};
   mutable std::mutex mutex_;
   std::map<std::string, std::shared_ptr<Entry>> entries_;
 };

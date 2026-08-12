@@ -18,6 +18,7 @@
 
 #include "xgc_ros1_tools_adapter/error.hpp"
 #include "xgc_ros1_tools_adapter/generated_contract.hpp"
+#include "xgc_ros1_tools_adapter/publisher_registry.hpp"
 #include "xgc_ros1_tools_adapter/service_invoker.hpp"
 #include "xgc_ros1_tools_adapter/tools_adapter.hpp"
 
@@ -33,7 +34,7 @@ std::int64_t deadlineNanos(std::chrono::seconds after) {
       .count();
 }
 
-xgc::v1::SchemaReference schema(const contract::Schema& source) {
+xgc::v1::SchemaReference schema(const contract::Schema &source) {
   xgc::v1::SchemaReference result;
   result.set_message_id(source.message_id);
   result.set_type_name(source.type_name);
@@ -43,16 +44,16 @@ xgc::v1::SchemaReference schema(const contract::Schema& source) {
 }
 
 xgc::adapter::v1::OperationRequest operation(
-    const std::string& json, const contract::Endpoint& endpoint) {
+    const std::string &json, const contract::Endpoint &endpoint) {
   xgc::adapter::v1::OperationRequest request;
-  auto* context = request.mutable_context();
+  auto *context = request.mutable_context();
   context->set_capability_id(endpoint.capability_id);
   context->set_contract_version(endpoint.contract_version);
   context->set_contract_digest(endpoint.contract_digest);
   context->set_endpoint_id(endpoint.endpoint_id);
   context->mutable_deadline()->set_deadline_unix_nanos(
       deadlineNanos(std::chrono::seconds(5)));
-  auto* subject = context->mutable_subject();
+  auto *subject = context->mutable_subject();
   subject->set_kind("ros1-native-context");
   subject->set_key(kScopeKey);
   (*subject->mutable_attributes())["master-uri"] = "http://127.0.0.1:11311";
@@ -62,7 +63,7 @@ xgc::adapter::v1::OperationRequest operation(
   return request;
 }
 
-Json::Value parseJson(const std::string& input) {
+Json::Value parseJson(const std::string &input) {
   Json::CharReaderBuilder builder;
   std::unique_ptr<Json::CharReader> reader(builder.newCharReader());
   Json::Value value;
@@ -92,7 +93,7 @@ xgc::adapter::v1::AdapterInstanceSpec instanceSpec() {
   return spec;
 }
 
-xgc::adapter::v1::EnabledCapability grant(const contract::Endpoint& endpoint) {
+xgc::adapter::v1::EnabledCapability grant(const contract::Endpoint &endpoint) {
   xgc::adapter::v1::EnabledCapability result;
   result.set_capability_id(endpoint.capability_id);
   result.set_contract_version(endpoint.contract_version);
@@ -101,7 +102,7 @@ xgc::adapter::v1::EnabledCapability grant(const contract::Endpoint& endpoint) {
   return result;
 }
 
-void activatePublish(ToolsAdapter* adapter) {
+void activatePublish(ToolsAdapter *adapter) {
   auto spec = instanceSpec();
   std::string error;
   ASSERT_TRUE(adapter->ApplyInstanceSpec(spec, &error)) << error;
@@ -110,13 +111,42 @@ void activatePublish(ToolsAdapter* adapter) {
       << error;
 }
 
-void activateService(ToolsAdapter* adapter) {
+void activateService(ToolsAdapter *adapter) {
   auto spec = instanceSpec();
   std::string error;
   ASSERT_TRUE(adapter->ApplyInstanceSpec(spec, &error)) << error;
   ASSERT_TRUE(
       adapter->StartServiceCapability(spec, grant(contract::kService), &error))
       << error;
+}
+
+TEST(PublisherRegistryIntegration,
+     InvalidatesCachedPublishersWhenMasterGenerationChanges) {
+  ros::NodeHandle node_handle;
+  TypeRegistry types;
+  JsonCodec codec;
+  std::int64_t master_generation = 101;
+  PublisherRegistry registry(
+      node_handle, types, codec, 128,
+      [&master_generation] { return master_generation; });
+  PublishRequest request;
+  request.message_type = "std_msgs/String";
+  request.message = Json::Value(Json::objectValue);
+  request.message["data"] = "generation";
+  request.publish_count = 1;
+  request.publish_rate_hz = 10;
+  request.queue_size = 10;
+
+  request.topic = "/xgc_ros1_tools_adapter_test/generation_one";
+  EXPECT_EQ(1u, registry.publish(request).published_count);
+  request.topic = "/xgc_ros1_tools_adapter_test/generation_same";
+  EXPECT_EQ(1u, registry.publish(request).published_count);
+  EXPECT_EQ(2u, registry.size());
+
+  master_generation = 102;
+  request.topic = "/xgc_ros1_tools_adapter_test/generation_restarted";
+  EXPECT_EQ(1u, registry.publish(request).published_count);
+  EXPECT_EQ(1u, registry.size());
 }
 
 TEST(ToolsAdapterIntegration, PublishesTypedJsonMessage) {
@@ -127,7 +157,7 @@ TEST(ToolsAdapterIntegration, PublishesTypedJsonMessage) {
   std::uint32_t received_count = 0;
   const auto subscriber = node_handle.subscribe<std_msgs::String>(
       "/xgc_ros1_tools_adapter_test/topic", 10,
-      [&](const std_msgs::String::ConstPtr& message) {
+      [&](const std_msgs::String::ConstPtr &message) {
         std::lock_guard<std::mutex> lock(mutex);
         received_value = message->data;
         ++received_count;
@@ -168,10 +198,10 @@ TEST(ToolsAdapterIntegration, PublishesTypedJsonMessage) {
 
 TEST(ToolsAdapterIntegration, CallsTypedJsonService) {
   ros::NodeHandle node_handle;
-  const boost::function<bool(std_srvs::SetBool::Request&,
-                             std_srvs::SetBool::Response&)>
-      callback = [](std_srvs::SetBool::Request& request,
-                    std_srvs::SetBool::Response& response) {
+  const boost::function<bool(std_srvs::SetBool::Request &,
+                             std_srvs::SetBool::Response &)>
+      callback = [](std_srvs::SetBool::Request &request,
+                    std_srvs::SetBool::Response &response) {
         response.success = request.data;
         response.message = request.data ? "enabled" : "disabled";
         return true;
@@ -203,9 +233,9 @@ TEST(ToolsAdapterIntegration, CallsTypedJsonService) {
 
 TEST(ToolsAdapterIntegration, CallsServiceWithAnEmptyWireResponse) {
   ros::NodeHandle node_handle;
-  const boost::function<bool(std_srvs::Empty::Request&,
-                             std_srvs::Empty::Response&)>
-      callback = [](std_srvs::Empty::Request&, std_srvs::Empty::Response&) {
+  const boost::function<bool(std_srvs::Empty::Request &,
+                             std_srvs::Empty::Response &)>
+      callback = [](std_srvs::Empty::Request &, std_srvs::Empty::Response &) {
         return true;
       };
   const auto server = node_handle.advertiseService<std_srvs::Empty::Request,
@@ -239,10 +269,10 @@ TEST(ToolsAdapterIntegration, KillsAndReapsAServiceThatExceedsCallTimeout) {
   std::condition_variable release_condition;
   bool entered = false;
   bool release = false;
-  const boost::function<bool(std_srvs::SetBool::Request&,
-                             std_srvs::SetBool::Response&)>
-      callback = [&](std_srvs::SetBool::Request&,
-                     std_srvs::SetBool::Response& response) {
+  const boost::function<bool(std_srvs::SetBool::Request &,
+                             std_srvs::SetBool::Response &)>
+      callback = [&](std_srvs::SetBool::Request &,
+                     std_srvs::SetBool::Response &response) {
         std::unique_lock<std::mutex> lock(mutex);
         entered = true;
         entered_condition.notify_all();
@@ -288,9 +318,9 @@ TEST(ToolsAdapterIntegration, KillsAndReapsAServiceThatExceedsCallTimeout) {
 TEST(ToolsAdapterIntegration, PreCancelledServiceDoesNotReachRos) {
   ros::NodeHandle node_handle;
   std::atomic<int> calls{0};
-  const boost::function<bool(std_srvs::Empty::Request&,
-                             std_srvs::Empty::Response&)>
-      callback = [&](std_srvs::Empty::Request&, std_srvs::Empty::Response&) {
+  const boost::function<bool(std_srvs::Empty::Request &,
+                             std_srvs::Empty::Response &)>
+      callback = [&](std_srvs::Empty::Request &, std_srvs::Empty::Response &) {
         ++calls;
         return true;
       };
@@ -372,7 +402,7 @@ TEST(ToolsAdapterIntegration,
   std::atomic<int> received{0};
   const auto subscriber = node_handle.subscribe<std_msgs::String>(
       "/xgc_ros1_tools_adapter_test/schema_drift", 10,
-      [&](const std_msgs::String::ConstPtr&) { ++received; });
+      [&](const std_msgs::String::ConstPtr &) { ++received; });
   ASSERT_TRUE(subscriber);
 
   auto adapter = createAdapter();
@@ -424,7 +454,7 @@ TEST(ToolsAdapterIntegration, StopPublishUnregistersLatchedPublisher) {
   std::atomic<int> received{0};
   const auto subscriber = node_handle.subscribe<std_msgs::String>(
       "/xgc_ros1_tools_adapter_test/stopped_latch", 1,
-      [&](const std_msgs::String::ConstPtr&) { ++received; });
+      [&](const std_msgs::String::ConstPtr &) { ++received; });
   ASSERT_TRUE(subscriber);
   std::this_thread::sleep_for(std::chrono::milliseconds(500));
   EXPECT_EQ(0, received.load());
@@ -475,10 +505,10 @@ TEST(ToolsAdapterIntegration, RejectsServiceCallsAboveInFlightLimit) {
   std::condition_variable release_condition;
   bool entered = false;
   bool release = false;
-  const boost::function<bool(std_srvs::SetBool::Request&,
-                             std_srvs::SetBool::Response&)>
-      callback = [&](std_srvs::SetBool::Request&,
-                     std_srvs::SetBool::Response& response) {
+  const boost::function<bool(std_srvs::SetBool::Request &,
+                             std_srvs::SetBool::Response &)>
+      callback = [&](std_srvs::SetBool::Request &,
+                     std_srvs::SetBool::Response &response) {
         std::unique_lock<std::mutex> lock(mutex);
         entered = true;
         entered_condition.notify_all();
@@ -517,7 +547,7 @@ TEST(ToolsAdapterIntegration, RejectsServiceCallsAboveInFlightLimit) {
     try {
       (void)invoker.call(request);
       ADD_FAILURE() << "second service call unexpectedly acquired quota";
-    } catch (const Ros1ToolsError& error) {
+    } catch (const Ros1ToolsError &error) {
       EXPECT_EQ("resource-exhausted", error.errorClass());
       EXPECT_EQ("service_call_busy", error.code());
     }
@@ -609,7 +639,7 @@ TEST(ToolsAdapterIntegration, RejectsInvocationForAnotherNativeContext) {
 }  // namespace
 }  // namespace xgc_ros1_tools_adapter
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv) {
   ros::init(
       argc, argv, "xgc_ros1_tools_adapter_integration_tests",
       ros::init_options::AnonymousName | ros::init_options::NoSigintHandler);

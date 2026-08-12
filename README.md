@@ -63,6 +63,11 @@ cancellation or timeout before the helper's explicit commit fence is safe;
 after that fence the operation terminates as `uncertain` because the ROS server
 may already have executed the request.
 
+Before publishing, the Adapter reads the ROS master's process identity. If a
+new master has appeared at the same URI, publishers registered with the former
+master are discarded and recreated before dispatch. This keeps a supervised
+Adapter instance usable across repeated Experiment runs that restart `roscore`.
+
 ## Build
 
 The build requires ROS Noetic, JsonCpp,

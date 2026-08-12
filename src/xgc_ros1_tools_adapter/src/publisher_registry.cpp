@@ -1,5 +1,6 @@
 #include "xgc_ros1_tools_adapter/publisher_registry.hpp"
 
+#include <ros/master.h>
 #include <ros/ros.h>
 
 #include <chrono>
@@ -11,6 +12,21 @@
 namespace xgc_ros1_tools_adapter {
 namespace {
 
+std::int64_t currentMasterGeneration() {
+  XmlRpc::XmlRpcValue request;
+  XmlRpc::XmlRpcValue response;
+  XmlRpc::XmlRpcValue payload;
+  request.setSize(1);
+  request[0] = "/xgc_ros1_tools_adapter_master_generation";
+  if (!ros::master::execute("getPid", request, response, payload, false) ||
+      payload.getType() != XmlRpc::XmlRpcValue::TypeInt ||
+      static_cast<int>(payload) <= 0) {
+    transientError("ros_master_generation_unavailable",
+                   "ROS1 master process generation is unavailable");
+  }
+  return static_cast<int>(payload);
+}
+
 bool deadlineExpired(std::int64_t deadline_unix_nanos) {
   if (deadline_unix_nanos <= 0) {
     return false;
@@ -21,11 +37,11 @@ bool deadlineExpired(std::int64_t deadline_unix_nanos) {
   return now_nanos >= deadline_unix_nanos;
 }
 
-bool cancellationRequested(const PublishRequest& request) {
+bool cancellationRequested(const PublishRequest &request) {
   return request.cancellation_requested && request.cancellation_requested();
 }
 
-void requireDispatchAllowed(const PublishRequest& request) {
+void requireDispatchAllowed(const PublishRequest &request) {
   if (cancellationRequested(request)) {
     cancelledError("publish_cancelled",
                    "ROS1 topic publish was cancelled before dispatch");
@@ -36,7 +52,7 @@ void requireDispatchAllowed(const PublishRequest& request) {
   }
 }
 
-void requireContinuationAllowed(const PublishRequest& request) {
+void requireContinuationAllowed(const PublishRequest &request) {
   if (cancellationRequested(request)) {
     uncertainError("publish_cancelled_after_dispatch",
                    "ROS1 topic publish was cancelled after native dispatch");
@@ -48,7 +64,7 @@ void requireContinuationAllowed(const PublishRequest& request) {
   }
 }
 
-void waitUntil(const PublishRequest& request,
+void waitUntil(const PublishRequest &request,
                std::chrono::steady_clock::time_point target) {
   while (std::chrono::steady_clock::now() < target) {
     requireContinuationAllowed(request);
@@ -60,22 +76,26 @@ void waitUntil(const PublishRequest& request,
 
 }  // namespace
 
-PublisherRegistry::PublisherRegistry(ros::NodeHandle node_handle,
-                                     TypeRegistry& types,
-                                     const JsonCodec& codec,
-                                     std::size_t maximum_publishers)
+PublisherRegistry::PublisherRegistry(
+    ros::NodeHandle node_handle, TypeRegistry &types, const JsonCodec &codec,
+    std::size_t maximum_publishers,
+    MasterGenerationProvider master_generation_provider)
     : node_handle_(std::move(node_handle)),
       types_(types),
       codec_(codec),
-      maximum_publishers_(maximum_publishers) {
+      maximum_publishers_(maximum_publishers),
+      master_generation_provider_(master_generation_provider
+                                      ? std::move(master_generation_provider)
+                                      : currentMasterGeneration) {
   if (maximum_publishers_ == 0) {
     permanentError("invalid_configuration",
                    "maximum cached ROS1 publishers must be greater than zero");
   }
 }
 
-PublishResult PublisherRegistry::publish(const PublishRequest& request) {
+PublishResult PublisherRegistry::publish(const PublishRequest &request) {
   requireDispatchAllowed(request);
+  refreshMasterGeneration();
   auto message = types_.createMessage(request.message_type);
   codec_.decode(request.message, *message);
   auto serialized = types_.serialize(message);
@@ -108,7 +128,7 @@ PublishResult PublisherRegistry::publish(const PublishRequest& request) {
       selected_entry = entry;
       entries_.emplace(request.topic, std::move(entry));
     } else {
-      const auto& entry = iterator->second;
+      const auto &entry = iterator->second;
       if (entry->message_type != request.message_type ||
           entry->latch != request.latch ||
           entry->queue_size != request.queue_size) {
@@ -184,7 +204,7 @@ PublishResult PublisherRegistry::publish(const PublishRequest& request) {
       requireContinuationAllowed(request);
       try {
         publisher.publish(*serialized);
-      } catch (const std::exception& exception) {
+      } catch (const std::exception &exception) {
         uncertainError("publish_dispatch_failed",
                        "ROS1 topic publish may have been dispatched: " +
                            std::string(exception.what()));
@@ -198,12 +218,12 @@ PublishResult PublisherRegistry::publish(const PublishRequest& request) {
 
     result.subscriber_count = publisher.getNumSubscribers();
     return result;
-  } catch (const Ros1ToolsError&) {
+  } catch (const Ros1ToolsError &) {
     if (!released) {
       release(request.topic, selected_entry, false);
     }
     throw;
-  } catch (const std::exception& exception) {
+  } catch (const std::exception &exception) {
     if (!released) {
       release(request.topic, selected_entry, false);
       throw;
@@ -221,8 +241,26 @@ PublishResult PublisherRegistry::publish(const PublishRequest& request) {
   }
 }
 
-void PublisherRegistry::release(const std::string& topic,
-                                const std::shared_ptr<Entry>& entry,
+void PublisherRegistry::refreshMasterGeneration() {
+  const std::int64_t current = master_generation_provider_();
+  if (current <= 0) {
+    transientError("ros_master_generation_unavailable",
+                   "ROS1 master process generation is invalid");
+  }
+  std::map<std::string, std::shared_ptr<Entry>> stale;
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (master_generation_ != 0 && master_generation_ != current) {
+      stale.swap(entries_);
+    }
+    master_generation_ = current;
+  }
+  // Publisher destruction may perform ROS master I/O. Keep that work outside
+  // the registry lock so a restarted master cannot stall concurrent callers.
+}
+
+void PublisherRegistry::release(const std::string &topic,
+                                const std::shared_ptr<Entry> &entry,
                                 bool native_dispatch_committed) {
   std::shared_ptr<Entry> removed;
   {
