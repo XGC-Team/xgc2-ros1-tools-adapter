@@ -25,6 +25,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+  build:
+    name: package-tests-debs-${{ matrix.arch }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-latest
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+
 
       - name: Run C++ quality gate in Docker
         run: |
@@ -50,19 +64,6 @@ jobs:
                 --work-dir /tmp/xgc2-ros1-tools-adapter-quality
             '
 
-  build:
-    name: package-tests-debs-${{ matrix.arch }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - arch: amd64
-            runner: ubuntu-latest
-          - arch: arm64
-            runner: ubuntu-24.04-arm
-    runs-on: ${{ matrix.runner }}
-    steps:
-      - uses: actions/checkout@v4
 
       - name: Build, test, and install-check Debian package
         run: |

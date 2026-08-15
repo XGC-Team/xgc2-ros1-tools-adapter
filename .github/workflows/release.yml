@@ -29,16 +29,6 @@ on:
         required: false
         default: ""
         type: string
-      run_cpp_quality:
-        description: Run C++ quality checks
-        required: true
-        default: false
-        type: boolean
-      run_source_tests:
-        description: Run source tests
-        required: true
-        default: false
-        type: boolean
 
 permissions:
   actions: read
@@ -59,6 +49,32 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+  release-guard:
+    needs: prepare-contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+  cpp-quality:
+    name: cpp-quality
+    needs: release-guard
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+  build:
+    name: package-tests-debs-${{ matrix.arch }}
+    needs: release-guard
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-latest
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+
 
       - name: Validate release-train inputs
         env:
@@ -86,11 +102,6 @@ jobs:
             .xgc2/scripts/configure_xgc2_apt.sh --validate-url "$APT_OVERLAY_URL"
           fi
 
-  release-guard:
-    needs: prepare-contract
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
 
       - name: Validate release inputs
         env:
@@ -109,13 +120,6 @@ jobs:
             exit 1
           fi
 
-  cpp-quality:
-    if: ${{ inputs.run_cpp_quality }}
-    name: cpp-quality
-    needs: release-guard
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
 
       - name: Run C++ quality gate in Docker
         run: |
@@ -141,20 +145,6 @@ jobs:
                 --work-dir /tmp/xgc2-ros1-tools-adapter-quality
             '
 
-  build:
-    name: package-tests-debs-${{ matrix.arch }}
-    needs: release-guard
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - arch: amd64
-            runner: ubuntu-latest
-          - arch: arm64
-            runner: ubuntu-24.04-arm
-    runs-on: ${{ matrix.runner }}
-    steps:
-      - uses: actions/checkout@v4
 
       - name: Build, test, and install-check Debian package
         env:
