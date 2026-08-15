@@ -4,7 +4,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
-DOCKER_IMAGE="${DOCKER_IMAGE:-ros:noetic-ros-base-focal}"
+DOCKER_IMAGE="${DOCKER_IMAGE:-ghcr.io/xgc-team/xgc2-images/xgc2-build-focal-ros-noetic:1.0.0}"
 WORK_DIR="${WORK_DIR:-${REPO_ROOT}/.work/docker}"
 OUTPUT_DIR="${OUTPUT_DIR:-${REPO_ROOT}/debs}"
 INSTALL_CHECK="${INSTALL_CHECK:-true}"
@@ -103,28 +103,6 @@ docker run --rm \
 
     export DEBIAN_FRONTEND=noninteractive
     /workspace/source/.xgc2/scripts/configure_xgc2_apt.sh focal
-    apt-get install -y --no-install-recommends \
-      build-essential \
-      cmake \
-      dpkg-dev \
-      fakeroot \
-      file \
-      libjsoncpp-dev \
-      pkg-config \
-      ripgrep \
-      rsync \
-      ros-noetic-geometry-msgs \
-      ros-noetic-ros-babel-fish \
-      ros-noetic-roscpp \
-      ros-noetic-roslaunch \
-      ros-noetic-roslib \
-      ros-noetic-rospack \
-      ros-noetic-rostest \
-      ros-noetic-rosunit \
-      ros-noetic-std-msgs \
-      ros-noetic-std-srvs \
-      shellcheck
-
     /workspace/source/.xgc2/scripts/bootstrap_common_dependencies.sh
 
     if [[ -z "${ADAPTER_RUNTIME_CLIENT_DEB_VERSION}" ]]; then

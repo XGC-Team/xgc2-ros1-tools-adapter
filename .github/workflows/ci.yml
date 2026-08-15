@@ -15,7 +15,7 @@ permissions:
 env:
   ADAPTER_RUNTIME_CLIENT_DEB_VERSION: 0.6.0-1~focal
   XGC2_PROTOBUF_DEB_VERSION: 0.5.0-3~focal
-  XGC2_BOOTSTRAP_COMMON_FROM_GIT: "true"
+  XGC2_BOOTSTRAP_COMMON_FROM_GIT: "false"
   XGC2_PROTOBUF_GIT_TAG: v0.5.0-3
   XGC2_ADAPTER_RUNTIME_CLIENT_GIT_TAG: v0.6.0-1
 
@@ -29,7 +29,7 @@ jobs:
       - name: Run C++ quality gate in Docker
         run: |
           set -euo pipefail
-          docker pull ros:noetic-ros-base-focal
+          docker pull ghcr.io/xgc-team/xgc2-images/xgc2-build-focal-ros-noetic:1.0.0
           docker run --rm \
             -e ADAPTER_RUNTIME_CLIENT_DEB_VERSION \
             -e XGC2_PROTOBUF_DEB_VERSION \
@@ -39,29 +39,11 @@ jobs:
             -e XGC2_APT_OVERLAY_URL="${XGC2_APT_OVERLAY_URL:-}" \
             -e DEBIAN_FRONTEND=noninteractive \
             -v "$GITHUB_WORKSPACE:/workspace/source:ro" \
-            ros:noetic-ros-base-focal \
+            ghcr.io/xgc-team/xgc2-images/xgc2-build-focal-ros-noetic:1.0.0 \
             bash -lc '
               set -euo pipefail
               export DEBIAN_FRONTEND=noninteractive
               /workspace/source/.xgc2/scripts/configure_xgc2_apt.sh focal
-              apt-get install -y --no-install-recommends \
-                build-essential \
-                clang-format \
-                clang-tidy \
-                cmake \
-                libjsoncpp-dev \
-                pkg-config \
-                ripgrep \
-                rsync \
-                ros-noetic-geometry-msgs \
-                ros-noetic-ros-babel-fish \
-                ros-noetic-roscpp \
-                ros-noetic-roslib \
-                ros-noetic-rostest \
-                ros-noetic-std-msgs \
-                ros-noetic-std-srvs \
-                shellcheck
-
               /workspace/source/.xgc2/scripts/bootstrap_common_dependencies.sh
 
               /workspace/source/.xgc2/scripts/check_cpp_quality.sh \
