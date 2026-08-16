@@ -12,10 +12,6 @@ on:
 permissions:
   contents: read
 
-env:
-  ADAPTER_RUNTIME_CLIENT_DEB_VERSION: 0.6.0-1~focal
-  XGC2_PROTOBUF_DEB_VERSION: 0.5.0-3~focal
-
 jobs:
   cpp-quality:
     name: cpp-quality
@@ -42,8 +38,6 @@ jobs:
           set -euo pipefail
           docker pull ghcr.io/xgc-team/xgc2-images/xgc2-build-focal-ros-noetic:1.0.0
           docker run --rm \
-            -e ADAPTER_RUNTIME_CLIENT_DEB_VERSION \
-            -e XGC2_PROTOBUF_DEB_VERSION \
             -e XGC2_APT_OVERLAY_URL="${XGC2_APT_OVERLAY_URL:-}" \
             -e DEBIAN_FRONTEND=noninteractive \
             -v "$GITHUB_WORKSPACE:/workspace/source:ro" \

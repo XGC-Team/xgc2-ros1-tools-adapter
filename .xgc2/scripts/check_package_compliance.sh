@@ -105,6 +105,15 @@ grep -Fq '/bootstrap_common_dependencies.sh' \
   "${REPO_ROOT}/.github/workflows/ci.yml"
 grep -Fq '/bootstrap_common_dependencies.sh' \
   "${REPO_ROOT}/.github/workflows/release.yml"
+if rg -n '^(env:|[[:space:]]+(ADAPTER_RUNTIME_CLIENT_DEB_VERSION|XGC2_PROTOBUF_DEB_VERSION):)|-e (ADAPTER_RUNTIME_CLIENT_DEB_VERSION|XGC2_PROTOBUF_DEB_VERSION)' \
+    "${REPO_ROOT}/.github/workflows/ci.yml"; then
+  echo "ordinary push CI must resolve current published dependency candidates" >&2
+  exit 1
+fi
+grep -Fq 'ADAPTER_RUNTIME_CLIENT_DEB_VERSION:' \
+  "${REPO_ROOT}/.github/workflows/release.yml"
+grep -Fq 'XGC2_PROTOBUF_DEB_VERSION:' \
+  "${REPO_ROOT}/.github/workflows/release.yml"
 
 removed_identity_pattern='automation[._-]gate''way|\bgate''way\b|mav''ros|adapter[_ -]?li''nk|--sock''et'
 if rg -n -i \
