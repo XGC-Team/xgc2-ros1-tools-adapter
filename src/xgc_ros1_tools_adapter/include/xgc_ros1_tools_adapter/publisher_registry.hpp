@@ -37,6 +37,13 @@ struct PublishResult {
   std::uint32_t subscriber_count{0};
 };
 
+enum class MasterBindingState : std::uint8_t {
+  Unbound,
+  Bound,
+  Changed,
+  Unavailable,
+};
+
 class PublisherRegistry {
  public:
   using MasterGenerationProvider = std::function<std::int64_t()>;
@@ -47,6 +54,7 @@ class PublisherRegistry {
                     MasterGenerationProvider master_generation_provider = {});
 
   PublishResult publish(const PublishRequest &request);
+  MasterBindingState probeMasterBinding(std::int64_t *current = nullptr);
   void clear();
   std::size_t size() const;
 

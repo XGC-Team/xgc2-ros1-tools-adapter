@@ -56,6 +56,7 @@ class ToolsAdapter {
   xgc2::adapter_runtime::OperationResult CallService(
       const xgc::adapter::v1::OperationRequest& request,
       const xgc2::adapter_runtime::CancellationToken& cancellation);
+  MasterBindingState ProbeMasterBinding(std::int64_t* current = nullptr);
 
  private:
   Json::Value parseInput(const xgc::v1::Payload& payload,

@@ -114,7 +114,31 @@ int main(int argc, char** argv) {
     ROS_INFO("XGC2 ROS1 Tools Adapter is ready");
 
     ros::WallRate poll_rate(20.0);
+    int unavailable_polls = 0;
+    constexpr int kUnavailableExitPolls = 10;
     while (ros::ok() && !stop_requested.load(std::memory_order_acquire)) {
+      switch (adapter.ProbeMasterBinding()) {
+        case xgc_ros1_tools_adapter::MasterBindingState::Changed:
+          ROS_WARN(
+              "ROS master process generation changed; exiting so Runtime can "
+              "start a fresh Adapter generation");
+          stop_requested.store(true, std::memory_order_release);
+          continue;
+        case xgc_ros1_tools_adapter::MasterBindingState::Unavailable:
+          ++unavailable_polls;
+          if (unavailable_polls >= kUnavailableExitPolls) {
+            ROS_WARN(
+                "ROS master is gone; exiting this Adapter process so the next "
+                "publish starts a fresh ros::init");
+            stop_requested.store(true, std::memory_order_release);
+            continue;
+          }
+          break;
+        case xgc_ros1_tools_adapter::MasterBindingState::Bound:
+        case xgc_ros1_tools_adapter::MasterBindingState::Unbound:
+          unavailable_polls = 0;
+          break;
+      }
       poll_rate.sleep();
     }
 

@@ -709,6 +709,10 @@ xgc2::adapter_runtime::OperationResult ToolsAdapter::Publish(
   }
 }
 
+MasterBindingState ToolsAdapter::ProbeMasterBinding(std::int64_t* current) {
+  return publishers_.probeMasterBinding(current);
+}
+
 xgc2::adapter_runtime::OperationResult ToolsAdapter::CallService(
     const xgc::adapter::v1::OperationRequest& request,
     const xgc2::adapter_runtime::CancellationToken& cancellation) {

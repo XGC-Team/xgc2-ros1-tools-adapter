@@ -241,6 +241,38 @@ PublishResult PublisherRegistry::publish(const PublishRequest &request) {
   }
 }
 
+MasterBindingState PublisherRegistry::probeMasterBinding(
+    std::int64_t *current_out) {
+  std::int64_t current = 0;
+  try {
+    current = master_generation_provider_();
+  } catch (...) {
+    if (current_out != nullptr) {
+      *current_out = 0;
+    }
+    std::lock_guard<std::mutex> lock(mutex_);
+    return master_generation_ == 0 ? MasterBindingState::Unbound
+                                   : MasterBindingState::Unavailable;
+  }
+  if (current_out != nullptr) {
+    *current_out = current;
+  }
+  if (current <= 0) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return master_generation_ == 0 ? MasterBindingState::Unbound
+                                   : MasterBindingState::Unavailable;
+  }
+  std::lock_guard<std::mutex> lock(mutex_);
+  if (master_generation_ == 0) {
+    master_generation_ = current;
+    return MasterBindingState::Bound;
+  }
+  if (master_generation_ != current) {
+    return MasterBindingState::Changed;
+  }
+  return MasterBindingState::Bound;
+}
+
 void PublisherRegistry::refreshMasterGeneration() {
   const std::int64_t current = master_generation_provider_();
   if (current <= 0) {
@@ -248,15 +280,28 @@ void PublisherRegistry::refreshMasterGeneration() {
                    "ROS1 master process generation is invalid");
   }
   std::map<std::string, std::shared_ptr<Entry>> stale;
+  bool changed = false;
   {
     std::lock_guard<std::mutex> lock(mutex_);
-    if (master_generation_ != 0 && master_generation_ != current) {
-      stale.swap(entries_);
+    if (master_generation_ == 0) {
+      master_generation_ = current;
+      return;
     }
-    master_generation_ = current;
+    if (master_generation_ != current) {
+      // roscpp binds ROS_MASTER_URI during ros::init. Recreating publishers on
+      // this NodeHandle cannot re-register the node with a new master at the
+      // same URI. Drop the stale cache and refuse dispatch so the process can
+      // exit and Runtime can start a fresh generation.
+      stale.swap(entries_);
+      changed = true;
+    }
   }
-  // Publisher destruction may perform ROS master I/O. Keep that work outside
-  // the registry lock so a restarted master cannot stall concurrent callers.
+  if (changed) {
+    transientError(
+        "ros_master_generation_changed",
+        "ROS1 master process generation changed; this Adapter process is "
+        "bound to the previous master and must be recycled");
+  }
 }
 
 void PublisherRegistry::release(const std::string &topic,
