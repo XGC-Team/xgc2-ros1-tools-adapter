@@ -18,6 +18,11 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+set +u
+# shellcheck disable=SC1091
+source /opt/ros/noetic/setup.bash
+set -u
+
 for tool in catkin_make clang-format clang-tidy python3 rsync; do
   command -v "${tool}" >/dev/null || {
     echo "missing required tool: ${tool}" >&2
@@ -54,8 +59,6 @@ if [[ "${#format_files[@]}" -eq 0 ]]; then
 fi
 clang-format --dry-run --Werror --style=Google "${format_files[@]}"
 
-# shellcheck disable=SC1091
-source /opt/ros/noetic/setup.bash
 cd "${WORK_DIR}"
 catkin_make \
   -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \

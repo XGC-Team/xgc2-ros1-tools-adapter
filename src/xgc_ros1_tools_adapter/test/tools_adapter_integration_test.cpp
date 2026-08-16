@@ -161,13 +161,13 @@ TEST(PublisherRegistryIntegration,
   EXPECT_EQ(102, probed);
 
   bool master_down = false;
-  PublisherRegistry unavailable(
-      node_handle, types, codec, 128, [&master_generation, &master_down] {
-        if (master_down) {
-          throw std::runtime_error("master gone");
-        }
-        return master_generation;
-      });
+  PublisherRegistry unavailable(node_handle, types, codec, 128,
+                                [&master_generation, &master_down] {
+                                  if (master_down) {
+                                    throw std::runtime_error("master gone");
+                                  }
+                                  return master_generation;
+                                });
   request.topic = "/xgc_ros1_tools_adapter_test/generation_bound";
   master_generation = 201;
   EXPECT_EQ(1u, unavailable.publish(request).published_count);
