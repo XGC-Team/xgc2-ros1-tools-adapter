@@ -15,9 +15,6 @@ permissions:
 env:
   ADAPTER_RUNTIME_CLIENT_DEB_VERSION: 0.6.0-1~focal
   XGC2_PROTOBUF_DEB_VERSION: 0.5.0-3~focal
-  XGC2_BOOTSTRAP_COMMON_FROM_GIT: "false"
-  XGC2_PROTOBUF_GIT_TAG: v0.5.0-3
-  XGC2_ADAPTER_RUNTIME_CLIENT_GIT_TAG: v0.6.0-1
 
 jobs:
   cpp-quality:
@@ -47,9 +44,6 @@ jobs:
           docker run --rm \
             -e ADAPTER_RUNTIME_CLIENT_DEB_VERSION \
             -e XGC2_PROTOBUF_DEB_VERSION \
-            -e XGC2_BOOTSTRAP_COMMON_FROM_GIT \
-            -e XGC2_PROTOBUF_GIT_TAG \
-            -e XGC2_ADAPTER_RUNTIME_CLIENT_GIT_TAG \
             -e XGC2_APT_OVERLAY_URL="${XGC2_APT_OVERLAY_URL:-}" \
             -e DEBIAN_FRONTEND=noninteractive \
             -v "$GITHUB_WORKSPACE:/workspace/source:ro" \

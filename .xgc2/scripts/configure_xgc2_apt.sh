@@ -43,8 +43,6 @@ cleanup() {
 }
 trap cleanup EXIT
 
-apt-get update
-apt-get install -y --no-install-recommends ca-certificates curl gnupg
 curl -fsSL "${key_url}" -o "${key_file}"
 gpg --show-keys --with-fingerprint --with-colons \
   "${key_file}" 2>&1 \

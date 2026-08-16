@@ -3,10 +3,6 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
-EXPECTED_ADAPTER_RUNTIME_CLIENT_DEB_VERSION="0.6.0-1~focal"
-EXPECTED_XGC2_PROTOBUF_DEB_VERSION="0.5.0-3~focal"
-EXPECTED_PROTOBUF_GIT_TAG="v0.5.0-3"
-EXPECTED_RUNTIME_GIT_TAG="v0.6.0-1"
 BOOTSTRAP_SCRIPT="${SCRIPT_DIR}/bootstrap_common_dependencies.sh"
 PACKAGE_SCRIPT="${SCRIPT_DIR}/package_debs.sh"
 temporary="$(mktemp -d)"
@@ -75,23 +71,15 @@ grep -q 'xgc2::adapter_runtime_client' \
   "${REPO_ROOT}/src/xgc_ros1_tools_adapter/CMakeLists.txt"
 
 test -x "${BOOTSTRAP_SCRIPT}"
-grep -Fq \
-  "EXPECTED_ADAPTER_RUNTIME_CLIENT_DEB_VERSION=\"${EXPECTED_ADAPTER_RUNTIME_CLIENT_DEB_VERSION}\"" \
+# shellcheck disable=SC2016
+grep -Fq 'xgc2-protobuf-dev=${XGC2_PROTOBUF_DEB_VERSION}' \
   "${BOOTSTRAP_SCRIPT}"
-grep -Fq \
-  "EXPECTED_XGC2_PROTOBUF_DEB_VERSION=\"${EXPECTED_XGC2_PROTOBUF_DEB_VERSION}\"" \
+# shellcheck disable=SC2016
+grep -Fq 'libxgc2-adapter-runtime-client-dev=${ADAPTER_RUNTIME_CLIENT_DEB_VERSION}' \
   "${BOOTSTRAP_SCRIPT}"
-grep -Fq \
-  "EXPECTED_XGC2_PROTOBUF_GIT_TAG=\"${EXPECTED_PROTOBUF_GIT_TAG}\"" \
-  "${BOOTSTRAP_SCRIPT}"
-grep -Fq \
-  "EXPECTED_XGC2_ADAPTER_RUNTIME_CLIENT_GIT_TAG=\"${EXPECTED_RUNTIME_GIT_TAG}\"" \
-  "${BOOTSTRAP_SCRIPT}"
-grep -Fq 'mktemp -d /tmp/xgc2-common-bootstrap.XXXXXX' \
-  "${BOOTSTRAP_SCRIPT}"
-grep -Fq 'trap cleanup_bootstrap_work EXIT' "${BOOTSTRAP_SCRIPT}"
-if rg -n 'XGC2_COMMON_BOOTSTRAP_WORK_DIR' "${BOOTSTRAP_SCRIPT}"; then
-  echo "common dependency bootstrap must not accept a caller-selected delete path" >&2
+if rg -n 'git (clone|fetch)|BOOTSTRAP_COMMON_FROM_GIT|apt-get install.*build-essential' \
+  "${BOOTSTRAP_SCRIPT}"; then
+  echo "common dependencies must come from published XGC2 packages" >&2
   exit 1
 fi
 grep -Fq 'ADAPTER_RUNTIME_ABI_PACKAGE="libxgc2-adapter-runtime-client2"' \
@@ -181,30 +169,6 @@ PY
 for schema in "${REPO_ROOT}"/schemas/*.schema.json; do
   python3 -m json.tool "${schema}" >/dev/null
 done
-
-removed_deb_version="0.""4.0-1~focal"
-if XGC2_BOOTSTRAP_COMMON_FROM_GIT=true \
-  ADAPTER_RUNTIME_CLIENT_DEB_VERSION="${removed_deb_version}" \
-  XGC2_PROTOBUF_DEB_VERSION="${EXPECTED_XGC2_PROTOBUF_DEB_VERSION}" \
-  "${BOOTSTRAP_SCRIPT}" >"${temporary}/old-deb.out" 2>"${temporary}/old-deb.err"; then
-  echo "common dependency bootstrap accepted a removed Runtime client version" >&2
-  exit 1
-fi
-grep -Fq \
-  "must be exactly ${EXPECTED_ADAPTER_RUNTIME_CLIENT_DEB_VERSION}" \
-  "${temporary}/old-deb.err"
-
-removed_git_tag="v0.""4.0-1"
-if XGC2_BOOTSTRAP_COMMON_FROM_GIT=true \
-  ADAPTER_RUNTIME_CLIENT_DEB_VERSION="${EXPECTED_ADAPTER_RUNTIME_CLIENT_DEB_VERSION}" \
-  XGC2_PROTOBUF_DEB_VERSION="${EXPECTED_XGC2_PROTOBUF_DEB_VERSION}" \
-  XGC2_ADAPTER_RUNTIME_CLIENT_GIT_TAG="${removed_git_tag}" \
-  "${BOOTSTRAP_SCRIPT}" >"${temporary}/old-tag.out" 2>"${temporary}/old-tag.err"; then
-  echo "common dependency bootstrap accepted a removed Runtime client tag" >&2
-  exit 1
-fi
-grep -Fq "must be exactly ${EXPECTED_RUNTIME_GIT_TAG}" \
-  "${temporary}/old-tag.err"
 
 python3 "${REPO_ROOT}/tools/generate_runtime_manifests.py" \
   --executable /bin/true \
