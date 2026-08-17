@@ -114,6 +114,14 @@ grep -Fq 'ADAPTER_RUNTIME_CLIENT_DEB_VERSION:' \
   "${REPO_ROOT}/.github/workflows/release.yml"
 grep -Fq 'XGC2_PROTOBUF_DEB_VERSION:' \
   "${REPO_ROOT}/.github/workflows/release.yml"
+# shellcheck disable=SC2016
+grep -Fq 'XGC2_DEPENDENCY_SET_DIGEST="${XGC2_DEPENDENCY_SET_DIGEST:-}"' \
+  "${REPO_ROOT}/.github/workflows/release.yml"
+if rg -n 'inputs[.]run_(cpp_quality|source_tests)' \
+    "${REPO_ROOT}/.github/workflows/release.yml"; then
+  echo "release workflow must not reference removed optional quality inputs" >&2
+  exit 1
+fi
 
 removed_identity_pattern='automation[._-]gate''way|\bgate''way\b|mav''ros|adapter[_ -]?li''nk|--sock''et'
 if rg -n -i \

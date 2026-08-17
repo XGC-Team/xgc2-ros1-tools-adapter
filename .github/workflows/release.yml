@@ -126,6 +126,7 @@ jobs:
             -e ADAPTER_RUNTIME_CLIENT_DEB_VERSION \
             -e XGC2_PROTOBUF_DEB_VERSION \
             -e XGC2_APT_OVERLAY_URL="${XGC2_APT_OVERLAY_URL:-}" \
+            -e XGC2_DEPENDENCY_SET_DIGEST="${XGC2_DEPENDENCY_SET_DIGEST:-}" \
             -e DEBIAN_FRONTEND=noninteractive \
             -v "$GITHUB_WORKSPACE:/workspace/source:ro" \
             ghcr.io/xgc-team/xgc2-images/xgc2-build-focal-ros-noetic:1.0.0 \
@@ -141,14 +142,9 @@ jobs:
 
 
       - name: Build, test, and install-check Debian package
-        env:
-          RUN_SOURCE_TESTS: ${{ inputs.run_source_tests }}
         run: |
           set -euo pipefail
           install -d .ci/build-manifests
-          if [[ "$RUN_SOURCE_TESTS" != "true" ]]; then
-            echo "Source tests are mandatory in the package build and remain enabled." >&2
-          fi
           .xgc2/scripts/build_debs_in_docker.sh \
             --work-dir "$RUNNER_TEMP/xgc2-ros1-tools-adapter-${{ matrix.arch }}" \
             --output-dir "$GITHUB_WORKSPACE/debs"

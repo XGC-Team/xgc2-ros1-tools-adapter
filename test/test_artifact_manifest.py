@@ -195,9 +195,13 @@ class ArtifactManifestTest(unittest.TestCase):
         output = self.root / "output"
         output.mkdir()
         (output / "stale.deb").write_bytes(b"not a package")
+        environment = dict(os.environ)
+        environment.pop("XGC2_APT_OVERLAY_URL", None)
+        environment.pop("XGC2_DEPENDENCY_SET_DIGEST", None)
         result = subprocess.run(
             [str(BUILD_SCRIPT), "--output-dir", str(output)],
             check=False,
+            env=environment,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
