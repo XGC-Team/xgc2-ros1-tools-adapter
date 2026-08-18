@@ -117,6 +117,12 @@ grep -Fq 'XGC2_PROTOBUF_DEB_VERSION:' \
 # shellcheck disable=SC2016
 grep -Fq 'XGC2_DEPENDENCY_SET_DIGEST="${XGC2_DEPENDENCY_SET_DIGEST:-}"' \
   "${REPO_ROOT}/.github/workflows/release.yml"
+grep -Fq '/etc/apt/sources.list.d/xgc2.list' \
+  "${SCRIPT_DIR}/configure_xgc2_apt.sh"
+grep -Fq '00-xgc2-release-train.list' \
+  "${SCRIPT_DIR}/configure_xgc2_apt.sh"
+grep -Fq 'https://xgc2.apt.xiaokang.ink' \
+  "${SCRIPT_DIR}/configure_xgc2_apt.sh"
 if rg -n 'inputs[.]run_(cpp_quality|source_tests)' \
     "${REPO_ROOT}/.github/workflows/release.yml"; then
   echo "release workflow must not reference removed optional quality inputs" >&2

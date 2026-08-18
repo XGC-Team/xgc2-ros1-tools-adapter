@@ -302,6 +302,13 @@ class AptUrlValidationTest(unittest.TestCase):
                 result = self.validate(url)
                 self.assertNotEqual(0, result.returncode)
 
+    def test_keeps_production_apt_when_overlay_is_set(self) -> None:
+        script = APT_SCRIPT.read_text(encoding="utf-8")
+        self.assertIn("/etc/apt/sources.list.d/xgc2.list", script)
+        self.assertIn("00-xgc2-release-train.list", script)
+        self.assertIn("https://xgc2.apt.xiaokang.ink", script)
+        self.assertIn("XGC2_APT_OVERLAY_URL", script)
+
 
 if __name__ == "__main__":
     unittest.main()
