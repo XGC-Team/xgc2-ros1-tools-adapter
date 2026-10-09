@@ -11,15 +11,15 @@ CLOCK_WAIT="${PREFIX}/lib/${ROS_PACKAGE}/${ROS_PACKAGE}_clock_wait"
 ADAPTER_MANIFEST="/usr/share/xgc2/adapter-definitions/xgc2-ros1-tools-adapter.json"
 PROCESS_MANIFEST="/usr/share/xgc2/process-definitions/xgc2-ros1-tools-adapter.json"
 ADAPTER_RUNTIME_CLIENT_DEB_VERSION="${ADAPTER_RUNTIME_CLIENT_DEB_VERSION:-$(
-  dpkg-query -W -f='${Version}' libxgc2-adapter-runtime-client2
+  dpkg-query -W -f='${Version}' libxgc2-adapter-runtime-client3
 )}"
 REMOVED_PACKAGE="ros-${ROS_DISTRO}-xgc2-ros1-automation-"'gate'"way"
 REMOVED_ROS_PACKAGE="xgc_ros1_automation_"'gate'"way"
 REMOVED_DEFINITION="xgc2-ros1-automation-"'gate'"way"
 
 dpkg -s "${PACKAGE}" >/dev/null
-dpkg -s libxgc2-adapter-runtime-client2 >/dev/null
-test "$(dpkg-query -W -f='${Version}' libxgc2-adapter-runtime-client2)" = \
+dpkg -s libxgc2-adapter-runtime-client3 >/dev/null
+test "$(dpkg-query -W -f='${Version}' libxgc2-adapter-runtime-client3)" = \
   "${ADAPTER_RUNTIME_CLIENT_DEB_VERSION}"
 if dpkg -s "${REMOVED_PACKAGE}" >/dev/null 2>&1; then
   echo "removed ROS1 automation package is still installed" >&2
@@ -29,7 +29,7 @@ fi
 depends="$(dpkg-query -W -f='${Depends}' "${PACKAGE}")"
 for dependency in \
   libjsoncpp1 \
-  libxgc2-adapter-runtime-client2 \
+  libxgc2-adapter-runtime-client3 \
   ros-noetic-ros-babel-fish \
   ros-noetic-roscpp \
   ros-noetic-roslib \
@@ -74,11 +74,11 @@ if ! ldd "${SERVICE_HELPER}" | awk '/not found/ {missing=1} END {exit missing ? 
   exit 1
 fi
 runtime_libraries="$(ldd "${EXECUTABLE}")"
-grep -Eq 'libxgc2_adapter_runtime_client[.]so[.]2 => /' \
+grep -Eq 'libxgc2_adapter_runtime_client[.]so[.]3 => /' \
   <<<"${runtime_libraries}"
-grep -Eq 'libxgc2_adapter_runtime_protocol[.]so[.]2 => /' \
+grep -Eq 'libxgc2_adapter_runtime_protocol[.]so[.]3 => /' \
   <<<"${runtime_libraries}"
-if grep -Eq 'libxgc2_adapter_runtime_(client|protocol)[.]so[.](0|1)([[:space:]]|$)' \
+if grep -Eq 'libxgc2_adapter_runtime_(client|protocol)[.]so[.](0|1|2)([[:space:]]|$)' \
   <<<"${runtime_libraries}"; then
   echo "installed Adapter executable links a removed Runtime client ABI" >&2
   exit 1

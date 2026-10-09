@@ -22,7 +22,7 @@ apt:
   - ros-noetic-xgc2-ros1-tools-adapter
   depends:
   - libjsoncpp1
-  - libxgc2-adapter-runtime-client2
+  - libxgc2-adapter-runtime-client3
   - ros-noetic-ros-babel-fish
   - ros-noetic-roscpp
   - ros-noetic-roslib
@@ -54,9 +54,9 @@ usage:
 
     other than its outbound connection to the target-local Adapter Runtime.
 
-    Builds require the exact 0.6.0 SDK and 0.5.0-3 schema inputs. Installed applications
+    Builds require the exact 0.7.0 SDK and 0.6.0 schema inputs. Installed applications
 
-    require only the ABI-2 Runtime shared-library package; SDK headers and schema
+    require only the ABI-3 Runtime shared-library package; SDK headers and schema
 
     sources do not participate in the deployment dependency graph.
 

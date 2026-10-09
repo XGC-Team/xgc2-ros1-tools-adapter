@@ -34,7 +34,7 @@ installed_client_version="$(
   dpkg-query -W -f='${Version}' libxgc2-adapter-runtime-client-dev
 )"
 installed_runtime_version="$(
-  dpkg-query -W -f='${Version}' libxgc2-adapter-runtime-client2
+  dpkg-query -W -f='${Version}' libxgc2-adapter-runtime-client3
 )"
 installed_protobuf_version="$(dpkg-query -W -f='${Version}' xgc2-protobuf-dev)"
 require_exact \
@@ -53,10 +53,10 @@ require_exact \
 version_header="/usr/include/xgc2/adapter_runtime/version.hpp"
 test -f "${version_header}"
 grep -q '^#define XGC2_ADAPTER_RUNTIME_CLIENT_VERSION_MAJOR 0$' "${version_header}"
-grep -q '^#define XGC2_ADAPTER_RUNTIME_CLIENT_VERSION_MINOR 6$' "${version_header}"
+grep -q '^#define XGC2_ADAPTER_RUNTIME_CLIENT_VERSION_MINOR 7$' "${version_header}"
 grep -q '^#define XGC2_ADAPTER_RUNTIME_CLIENT_VERSION_PATCH 0$' "${version_header}"
-grep -q '^#define XGC2_ADAPTER_RUNTIME_CLIENT_ABI_VERSION 2$' "${version_header}"
-grep -q '^constexpr std::uint32_t kAdapterBootstrapFormatVersion = 2;$' \
+grep -q '^#define XGC2_ADAPTER_RUNTIME_CLIENT_ABI_VERSION 3$' "${version_header}"
+grep -q '^constexpr std::uint32_t kAdapterBootstrapFormatVersion = 3;$' \
   "${version_header}"
 grep -q '^constexpr std::uint32_t kRuntimeLinkProtocolVersion = 2;$' \
   "${version_header}"
