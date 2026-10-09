@@ -40,9 +40,9 @@ if not isinstance(apt, dict):
 depends = apt.get("depends")
 if not isinstance(depends, list):
     raise SystemExit(f"{product_path}: apt.depends must be a list")
-if "libxgc2-adapter-runtime-client2" not in depends:
+if "libxgc2-adapter-runtime-client3" not in depends:
     raise SystemExit(
-        f"{product_path}: apt.depends is missing libxgc2-adapter-runtime-client2"
+        f"{product_path}: apt.depends is missing libxgc2-adapter-runtime-client3"
     )
 
 release = product.get("release")
@@ -65,7 +65,7 @@ for dependency, expected in expected_policy.items():
 PY
 grep -q '<name>xgc_ros1_tools_adapter</name>' \
   "${REPO_ROOT}/src/xgc_ros1_tools_adapter/package.xml"
-grep -q 'find_package(xgc2_adapter_runtime_client 0.6.0 EXACT REQUIRED CONFIG)' \
+grep -q 'find_package(xgc2_adapter_runtime_client 0.7.0 EXACT REQUIRED CONFIG)' \
   "${REPO_ROOT}/src/xgc_ros1_tools_adapter/CMakeLists.txt"
 grep -q 'xgc2::adapter_runtime_client' \
   "${REPO_ROOT}/src/xgc_ros1_tools_adapter/CMakeLists.txt"
@@ -82,7 +82,7 @@ if rg -n 'git (clone|fetch)|BOOTSTRAP_COMMON_FROM_GIT|apt-get install.*build-ess
   echo "common dependencies must come from published XGC2 packages" >&2
   exit 1
 fi
-grep -Fq 'ADAPTER_RUNTIME_ABI_PACKAGE="libxgc2-adapter-runtime-client2"' \
+grep -Fq 'ADAPTER_RUNTIME_ABI_PACKAGE="libxgc2-adapter-runtime-client3"' \
   "${PACKAGE_SCRIPT}"
 grep -Fq 'dpkg-shlibdeps -O' \
   "${PACKAGE_SCRIPT}"
@@ -91,9 +91,9 @@ grep -Fq \
   "${PACKAGE_SCRIPT}"
 grep -Fq "Conflicts: \${REMOVED_PACKAGE}" "${PACKAGE_SCRIPT}"
 grep -Fq "Replaces: \${REMOVED_PACKAGE}" "${PACKAGE_SCRIPT}"
-grep -Fq 'libxgc2_adapter_runtime_client[.]so[.]2' \
+grep -Fq 'libxgc2_adapter_runtime_client[.]so[.]3' \
   "${SCRIPT_DIR}/check_installed_packages.sh"
-grep -Fq 'libxgc2_adapter_runtime_protocol[.]so[.]2' \
+grep -Fq 'libxgc2_adapter_runtime_protocol[.]so[.]3' \
   "${SCRIPT_DIR}/check_installed_packages.sh"
 grep -Fq "test -x \"\${SERVICE_HELPER}\"" \
   "${SCRIPT_DIR}/check_installed_packages.sh"
@@ -183,7 +183,7 @@ if root.findtext("version") != "0.2.0":
 dependencies = {node.text for node in root if node.tag.endswith("depend")}
 if "libxgc2-adapter-runtime-client-dev" not in dependencies:
     raise SystemExit("Adapter Runtime SDK dependency is missing")
-if "libxgc2-adapter-runtime-client2" not in dependencies:
+if "libxgc2-adapter-runtime-client3" not in dependencies:
     raise SystemExit("Adapter Runtime ABI dependency is missing")
 specialized_package = "mav" + "ros"
 if any(specialized_package in dependency for dependency in dependencies if dependency):

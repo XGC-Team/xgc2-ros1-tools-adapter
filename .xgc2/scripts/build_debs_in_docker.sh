@@ -116,7 +116,7 @@ docker run --rm \
     fi
     test "$(dpkg-query -W -f="\${Version}" libxgc2-adapter-runtime-client-dev)" = \
       "${ADAPTER_RUNTIME_CLIENT_DEB_VERSION}"
-    test "$(dpkg-query -W -f="\${Version}" libxgc2-adapter-runtime-client2)" = \
+    test "$(dpkg-query -W -f="\${Version}" libxgc2-adapter-runtime-client3)" = \
       "${ADAPTER_RUNTIME_CLIENT_DEB_VERSION}"
     test "$(dpkg-query -W -f="\${Version}" xgc2-protobuf-dev)" = \
       "${XGC2_PROTOBUF_DEB_VERSION}"
