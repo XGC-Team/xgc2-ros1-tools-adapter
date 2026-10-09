@@ -85,6 +85,7 @@ copy_path "${PREFIX_ROOT}/lib/${ROS_PACKAGE}/${ROS_PACKAGE}_node"
 copy_path "${PREFIX_ROOT}/lib/${ROS_PACKAGE}/${ROS_PACKAGE}_service_helper"
 copy_path "${PREFIX_ROOT}/lib/${ROS_PACKAGE}/${ROS_PACKAGE}_clock_wait"
 copy_path "${PREFIX_ROOT}/lib/${ROS_PACKAGE}/${ROS_PACKAGE}_probe"
+copy_path "${PREFIX_ROOT}/lib/${ROS_PACKAGE}/${ROS_PACKAGE}_rosbag_recorder"
 copy_path "${INSTALL_ROOT}/usr/share/xgc2/adapter-definitions/xgc2-ros1-tools-adapter.json"
 copy_path "${INSTALL_ROOT}/usr/share/xgc2/process-definitions/xgc2-ros1-tools-adapter.json"
 
@@ -104,6 +105,7 @@ test -x "${service_helper}" || {
 }
 test -x "${clock_wait}"
 test -x "${probe}"
+test -x "${pkg_root}${PREFIX}/lib/${ROS_PACKAGE}/${ROS_PACKAGE}_rosbag_recorder"
 test -f "${share}/package.xml" || {
   echo "missing installed ROS package metadata: ${share}/package.xml" >&2
   exit 1
@@ -139,7 +141,7 @@ Section: misc
 Priority: optional
 Architecture: ${ARCH}
 Maintainer: XGC2 <lxk36@users.noreply.github.com>
-Depends: ${shlibdeps}, libjsoncpp1, ros-noetic-ros-babel-fish, ros-noetic-roscpp, ros-noetic-roslib, ros-noetic-rosgraph-msgs, ros-noetic-std-msgs, ros-noetic-std-srvs
+Depends: ${shlibdeps}, python3, ros-noetic-rosbag, ros-noetic-rospy, libjsoncpp1, ros-noetic-ros-babel-fish, ros-noetic-roscpp, ros-noetic-roslib, ros-noetic-rosgraph-msgs, ros-noetic-std-msgs, ros-noetic-std-srvs
 Conflicts: ${REMOVED_PACKAGE}
 Replaces: ${REMOVED_PACKAGE}
 Description: XGC2 ROS1 tools Adapter Runtime application

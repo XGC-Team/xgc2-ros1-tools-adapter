@@ -15,6 +15,9 @@
   <depend>rosgraph_msgs</depend>
   <build_depend>libjsoncpp-dev</build_depend>
   <build_depend>libxgc2-adapter-runtime-client-dev</build_depend>
+  <exec_depend>python3</exec_depend>
+  <exec_depend>rosbag</exec_depend>
+  <exec_depend>rospy</exec_depend>
   <exec_depend>libjsoncpp1</exec_depend>
   <exec_depend>libxgc2-adapter-runtime-client3</exec_depend>
 
