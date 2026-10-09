@@ -28,6 +28,7 @@ in-package isolation boundary, never an API or legacy migration path.
 - ROS package: `xgc_ros1_tools_adapter`
 - Executable: `/opt/ros/noetic/lib/xgc_ros1_tools_adapter/xgc_ros1_tools_adapter_node`
 - Service helper: `/opt/ros/noetic/lib/xgc_ros1_tools_adapter/xgc_ros1_tools_adapter_service_helper`
+- Clock wait: `/opt/ros/noetic/lib/xgc_ros1_tools_adapter/xgc_ros1_tools_adapter_clock_wait`
 - Adapter definition: `/usr/share/xgc2/adapter-definitions/xgc2-ros1-tools-adapter.json`
 - Internal process definition: `/usr/share/xgc2/process-definitions/xgc2-ros1-tools-adapter.json`
 
@@ -35,6 +36,19 @@ The Adapter definition is generated from the installed executable during
 installation. Its `buildDigest` is therefore the SHA-256 of the exact packaged
 ELF, while capability and manifest digests are calculated from their canonical
 contracts. No placeholder digest is installed.
+
+The finite clock tool uses the ordinary ROS process environment:
+
+```bash
+rosrun xgc_ros1_tools_adapter xgc_ros1_tools_adapter_clock_wait \
+  --target-seconds 12.3 --clock-topic /clock --timeout-seconds 300
+```
+
+Compose it with the existing `ros1.run` node or a shell command. It waits for
+an actual clock sample, compares integer nanoseconds, and writes the reached
+stamp as one JSON object. A backwards clock, disconnected publisher, multiple
+publishers, or wall-clock timeout fails the command. Process cancellation
+stops the subscription. There is no dedicated simulation node or Go ROS client.
 
 ## Runtime bootstrap
 

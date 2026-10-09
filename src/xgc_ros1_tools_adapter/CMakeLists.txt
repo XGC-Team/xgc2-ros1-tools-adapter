@@ -5,6 +5,7 @@ find_package(catkin REQUIRED COMPONENTS
   ros_babel_fish
   roscpp
   roslib
+  rosgraph_msgs
 )
 find_package(PkgConfig REQUIRED)
 find_package(PythonInterp 3 REQUIRED)
@@ -13,7 +14,7 @@ find_package(xgc2_adapter_runtime_client 0.6.0 EXACT REQUIRED CONFIG)
 pkg_check_modules(JSONCPP REQUIRED jsoncpp)
 
 catkin_package(
-  CATKIN_DEPENDS ros_babel_fish roscpp roslib
+  CATKIN_DEPENDS ros_babel_fish roscpp roslib rosgraph_msgs
 )
 
 set(XGC2_SCHEMA_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../schemas")
@@ -92,6 +93,12 @@ target_link_libraries(${PROJECT_NAME}_service_helper
   Threads::Threads
 )
 
+add_executable(${PROJECT_NAME}_clock_wait src/clock_wait_main.cpp)
+target_compile_features(${PROJECT_NAME}_clock_wait PRIVATE cxx_std_14)
+target_compile_options(${PROJECT_NAME}_clock_wait PRIVATE -Wall -Wextra -Wpedantic -Werror)
+target_include_directories(${PROJECT_NAME}_clock_wait PRIVATE include ${catkin_INCLUDE_DIRS})
+target_link_libraries(${PROJECT_NAME}_clock_wait ${catkin_LIBRARIES})
+
 set(XGC2_INSTALLED_EXECUTABLE
   "${CMAKE_INSTALL_PREFIX}/${CATKIN_PACKAGE_BIN_DESTINATION}/${PROJECT_NAME}_node")
 set(XGC2_RUNTIME_MANIFEST_DIR
@@ -139,6 +146,7 @@ add_custom_target(${PROJECT_NAME}_runtime_manifests ALL
 install(TARGETS
   ${PROJECT_NAME}_node
   ${PROJECT_NAME}_service_helper
+  ${PROJECT_NAME}_clock_wait
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/../../schemas/"
@@ -162,6 +170,7 @@ if(CATKIN_ENABLE_TESTING)
     test/service_helper_protocol_test.cpp
     test/tools_adapter_config_test.cpp
     test/type_catalog_test.cpp
+    test/clock_wait_test.cpp
   )
   if(TARGET ${PROJECT_NAME}_unit_tests)
     add_dependencies(${PROJECT_NAME}_unit_tests

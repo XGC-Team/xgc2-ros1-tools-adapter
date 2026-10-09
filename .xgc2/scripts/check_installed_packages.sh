@@ -7,6 +7,7 @@ PACKAGE="ros-${ROS_DISTRO}-xgc2-ros1-tools-adapter"
 ROS_PACKAGE="xgc_ros1_tools_adapter"
 EXECUTABLE="${PREFIX}/lib/${ROS_PACKAGE}/${ROS_PACKAGE}_node"
 SERVICE_HELPER="${PREFIX}/lib/${ROS_PACKAGE}/${ROS_PACKAGE}_service_helper"
+CLOCK_WAIT="${PREFIX}/lib/${ROS_PACKAGE}/${ROS_PACKAGE}_clock_wait"
 ADAPTER_MANIFEST="/usr/share/xgc2/adapter-definitions/xgc2-ros1-tools-adapter.json"
 PROCESS_MANIFEST="/usr/share/xgc2/process-definitions/xgc2-ros1-tools-adapter.json"
 ADAPTER_RUNTIME_CLIENT_DEB_VERSION="${ADAPTER_RUNTIME_CLIENT_DEB_VERSION:-$(
@@ -32,6 +33,7 @@ for dependency in \
   ros-noetic-ros-babel-fish \
   ros-noetic-roscpp \
   ros-noetic-roslib \
+  ros-noetic-rosgraph-msgs \
   ros-noetic-std-msgs \
   ros-noetic-std-srvs; do
   grep -Eq "(^|, )[[:space:]]*${dependency}([[:space:](,]|$)" <<<"${depends}" || {
@@ -52,6 +54,11 @@ test "$(rospack find "${ROS_PACKAGE}")" = "${PREFIX}/share/${ROS_PACKAGE}"
 test -f "${PREFIX}/share/${ROS_PACKAGE}/package.xml"
 test -x "${EXECUTABLE}"
 test -x "${SERVICE_HELPER}"
+test -x "${CLOCK_WAIT}"
+if "${CLOCK_WAIT}" --target-seconds -1; then
+  echo "clock wait accepted a negative target" >&2
+  exit 1
+fi
 test -f "${ADAPTER_MANIFEST}"
 test -f "${PROCESS_MANIFEST}"
 file -b "${EXECUTABLE}" | grep -q '^ELF'

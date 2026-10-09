@@ -83,11 +83,13 @@ copy_path() {
 copy_path "${PREFIX_ROOT}/share/${ROS_PACKAGE}"
 copy_path "${PREFIX_ROOT}/lib/${ROS_PACKAGE}/${ROS_PACKAGE}_node"
 copy_path "${PREFIX_ROOT}/lib/${ROS_PACKAGE}/${ROS_PACKAGE}_service_helper"
+copy_path "${PREFIX_ROOT}/lib/${ROS_PACKAGE}/${ROS_PACKAGE}_clock_wait"
 copy_path "${INSTALL_ROOT}/usr/share/xgc2/adapter-definitions/xgc2-ros1-tools-adapter.json"
 copy_path "${INSTALL_ROOT}/usr/share/xgc2/process-definitions/xgc2-ros1-tools-adapter.json"
 
 executable="${pkg_root}${PREFIX}/lib/${ROS_PACKAGE}/${ROS_PACKAGE}_node"
 service_helper="${pkg_root}${PREFIX}/lib/${ROS_PACKAGE}/${ROS_PACKAGE}_service_helper"
+clock_wait="${pkg_root}${PREFIX}/lib/${ROS_PACKAGE}/${ROS_PACKAGE}_clock_wait"
 share="${pkg_root}${PREFIX}/share/${ROS_PACKAGE}"
 
 test -x "${executable}" || {
@@ -98,6 +100,7 @@ test -x "${service_helper}" || {
   echo "missing installed ROS1 service helper: ${service_helper}" >&2
   exit 1
 }
+test -x "${clock_wait}"
 test -f "${share}/package.xml" || {
   echo "missing installed ROS package metadata: ${share}/package.xml" >&2
   exit 1
@@ -107,7 +110,7 @@ test -f "${pkg_root}/usr/share/xgc2/process-definitions/xgc2-ros1-tools-adapter.
 
 shlibdeps_output="$(
   cd "${BUILD_DIR}"
-  dpkg-shlibdeps -O "-e${executable}" "-e${service_helper}"
+  dpkg-shlibdeps -O "-e${executable}" "-e${service_helper}" "-e${clock_wait}"
 )"
 shlibdeps="${shlibdeps_output#shlibs:Depends=}"
 if [[ "${shlibdeps}" == "${shlibdeps_output}" || -z "${shlibdeps}" ]]; then
@@ -133,7 +136,7 @@ Section: misc
 Priority: optional
 Architecture: ${ARCH}
 Maintainer: XGC2 <lxk36@users.noreply.github.com>
-Depends: ${shlibdeps}, libjsoncpp1, ros-noetic-ros-babel-fish, ros-noetic-roscpp, ros-noetic-roslib, ros-noetic-std-msgs, ros-noetic-std-srvs
+Depends: ${shlibdeps}, libjsoncpp1, ros-noetic-ros-babel-fish, ros-noetic-roscpp, ros-noetic-roslib, ros-noetic-rosgraph-msgs, ros-noetic-std-msgs, ros-noetic-std-srvs
 Conflicts: ${REMOVED_PACKAGE}
 Replaces: ${REMOVED_PACKAGE}
 Description: XGC2 ROS1 tools Adapter Runtime application
@@ -151,6 +154,7 @@ find "${pkg_root}" -type f -exec chmod 0644 {} +
 chmod 0755 "${pkg_root}/DEBIAN"
 chmod 0755 "${executable}"
 chmod 0755 "${service_helper}"
+chmod 0755 "${clock_wait}"
 
 fakeroot dpkg-deb --build "${pkg_root}" \
   "${OUTPUT_DIR}/${PACKAGE}_${VERSION}_${ARCH}.deb" >/dev/null
