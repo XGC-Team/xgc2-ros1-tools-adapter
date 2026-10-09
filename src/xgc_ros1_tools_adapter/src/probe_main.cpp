@@ -14,6 +14,7 @@
 #include <iostream>
 #include <map>
 #include <memory>
+#include <regex>
 #include <set>
 #include <sstream>
 #include <stdexcept>
@@ -320,11 +321,19 @@ int main(int argc, char** argv) {
     for (const auto& option : options) {
       if (option.first != "--mode" && option.first != "--master-uri" &&
           option.first != "--node" && option.first != "--topic" &&
-          option.first != "--verify-address" && option.first != "--timeout-ms")
+          option.first != "--verify-address" && option.first != "--timeout-ms" &&
+          option.first != "--expected-type")
         throw std::invalid_argument("unknown option: " + option.first);
     }
     const auto mode = options["--mode"], master = options["--master-uri"];
     if (master.empty()) throw std::invalid_argument("master URI is required");
+    const auto expectedType = options.count("--expected-type")
+                                  ? options.at("--expected-type") : "";
+    if (options.count("--expected-type") &&
+        (expectedType.empty() || expectedType.size() > 256 ||
+         !std::regex_match(expectedType,
+             std::regex("[A-Za-z][A-Za-z0-9_]*/[A-Za-z][A-Za-z0-9_]*"))))
+      throw std::invalid_argument("expected type must use pkg/Type syntax");
     const auto timeout =
         options.count("--timeout-ms") ? options["--timeout-ms"] : "1000";
     if (timeout.empty() ||
@@ -373,9 +382,13 @@ int main(int argc, char** argv) {
             const ros::MessageEvent<ros_babel_fish::BabelFishMessage const>&)>
             callback = [&](const auto& event) {
               if (!node.empty() && event.getPublisherName() != node) return;
+              if (received || !failure.empty()) return;
               try {
+                const auto& message = event.getMessage();
+                if (!expectedType.empty() && message->dataType() != expectedType)
+                  throw std::runtime_error("expected " + expectedType +
+                                           ", received " + message->dataType());
                 if (mode == "mavros-connected") {
-                  const auto& message = event.getMessage();
                   if (message->dataType() != "mavros_msgs/State")
                     throw std::runtime_error("expected mavros_msgs/State");
                   if (!(*fish.translateMessage(*message))["connected"]
