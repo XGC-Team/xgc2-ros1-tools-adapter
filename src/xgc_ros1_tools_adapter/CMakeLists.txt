@@ -99,6 +99,12 @@ target_compile_options(${PROJECT_NAME}_clock_wait PRIVATE -Wall -Wextra -Wpedant
 target_include_directories(${PROJECT_NAME}_clock_wait PRIVATE include ${catkin_INCLUDE_DIRS})
 target_link_libraries(${PROJECT_NAME}_clock_wait ${catkin_LIBRARIES})
 
+add_executable(${PROJECT_NAME}_probe src/probe_main.cpp)
+target_compile_features(${PROJECT_NAME}_probe PRIVATE cxx_std_17)
+target_compile_options(${PROJECT_NAME}_probe PRIVATE -Wall -Wextra -Wpedantic -Werror)
+target_include_directories(${PROJECT_NAME}_probe PRIVATE ${catkin_INCLUDE_DIRS})
+target_link_libraries(${PROJECT_NAME}_probe ${catkin_LIBRARIES})
+
 set(XGC2_INSTALLED_EXECUTABLE
   "${CMAKE_INSTALL_PREFIX}/${CATKIN_PACKAGE_BIN_DESTINATION}/${PROJECT_NAME}_node")
 set(XGC2_RUNTIME_MANIFEST_DIR
@@ -147,6 +153,7 @@ install(TARGETS
   ${PROJECT_NAME}_node
   ${PROJECT_NAME}_service_helper
   ${PROJECT_NAME}_clock_wait
+  ${PROJECT_NAME}_probe
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/../../schemas/"

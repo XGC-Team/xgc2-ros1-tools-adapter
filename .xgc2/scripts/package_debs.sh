@@ -84,12 +84,14 @@ copy_path "${PREFIX_ROOT}/share/${ROS_PACKAGE}"
 copy_path "${PREFIX_ROOT}/lib/${ROS_PACKAGE}/${ROS_PACKAGE}_node"
 copy_path "${PREFIX_ROOT}/lib/${ROS_PACKAGE}/${ROS_PACKAGE}_service_helper"
 copy_path "${PREFIX_ROOT}/lib/${ROS_PACKAGE}/${ROS_PACKAGE}_clock_wait"
+copy_path "${PREFIX_ROOT}/lib/${ROS_PACKAGE}/${ROS_PACKAGE}_probe"
 copy_path "${INSTALL_ROOT}/usr/share/xgc2/adapter-definitions/xgc2-ros1-tools-adapter.json"
 copy_path "${INSTALL_ROOT}/usr/share/xgc2/process-definitions/xgc2-ros1-tools-adapter.json"
 
 executable="${pkg_root}${PREFIX}/lib/${ROS_PACKAGE}/${ROS_PACKAGE}_node"
 service_helper="${pkg_root}${PREFIX}/lib/${ROS_PACKAGE}/${ROS_PACKAGE}_service_helper"
 clock_wait="${pkg_root}${PREFIX}/lib/${ROS_PACKAGE}/${ROS_PACKAGE}_clock_wait"
+probe="${pkg_root}${PREFIX}/lib/${ROS_PACKAGE}/${ROS_PACKAGE}_probe"
 share="${pkg_root}${PREFIX}/share/${ROS_PACKAGE}"
 
 test -x "${executable}" || {
@@ -101,6 +103,7 @@ test -x "${service_helper}" || {
   exit 1
 }
 test -x "${clock_wait}"
+test -x "${probe}"
 test -f "${share}/package.xml" || {
   echo "missing installed ROS package metadata: ${share}/package.xml" >&2
   exit 1
@@ -110,7 +113,7 @@ test -f "${pkg_root}/usr/share/xgc2/process-definitions/xgc2-ros1-tools-adapter.
 
 shlibdeps_output="$(
   cd "${BUILD_DIR}"
-  dpkg-shlibdeps -O "-e${executable}" "-e${service_helper}" "-e${clock_wait}"
+  dpkg-shlibdeps -O "-e${executable}" "-e${service_helper}" "-e${clock_wait}" "-e${probe}"
 )"
 shlibdeps="${shlibdeps_output#shlibs:Depends=}"
 if [[ "${shlibdeps}" == "${shlibdeps_output}" || -z "${shlibdeps}" ]]; then
@@ -155,6 +158,7 @@ chmod 0755 "${pkg_root}/DEBIAN"
 chmod 0755 "${executable}"
 chmod 0755 "${service_helper}"
 chmod 0755 "${clock_wait}"
+chmod 0755 "${probe}"
 
 fakeroot dpkg-deb --build "${pkg_root}" \
   "${OUTPUT_DIR}/${PACKAGE}_${VERSION}_${ARCH}.deb" >/dev/null
