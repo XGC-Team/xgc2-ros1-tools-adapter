@@ -1,7 +1,7 @@
 schema: xgc2.product.v1
 id: xgc2-ros1-tools-adapter
 name: XGC2 ROS1 Tools Adapter
-version: 0.2.0-8
+version: 0.2.0-9
 kind: ros1-apt
 summary: Generic typed ROS1 topic-publish and service-call capabilities provided as
   an XGC2 Adapter Runtime application.
@@ -21,6 +21,9 @@ apt:
   packages:
   - ros-noetic-xgc2-ros1-tools-adapter
   depends:
+  - python3
+  - ros-noetic-rosbag
+  - ros-noetic-rospy
   - libjsoncpp1
   - libxgc2-adapter-runtime-client3
   - ros-noetic-ros-babel-fish
@@ -67,6 +70,7 @@ ownership:
   - /opt/ros/noetic/lib/xgc_ros1_tools_adapter/xgc_ros1_tools_adapter_node
   - /opt/ros/noetic/lib/xgc_ros1_tools_adapter/xgc_ros1_tools_adapter_service_helper
   - /opt/ros/noetic/lib/xgc_ros1_tools_adapter/xgc_ros1_tools_adapter_clock_wait
+  - /opt/ros/noetic/lib/xgc_ros1_tools_adapter/xgc_ros1_tools_adapter_rosbag_recorder
   - /usr/share/xgc2/adapter-definitions/xgc2-ros1-tools-adapter.json
 release:
   repository: XGC-Team/xgc2-ros1-tools-adapter
@@ -80,4 +84,4 @@ release:
     libxgc2-adapter-runtime-client-dev: rebuild
     xgc2-protobuf: rebuild
   apt_versions:
-    focal: 0.2.0-8
+    focal: 0.2.0-9
