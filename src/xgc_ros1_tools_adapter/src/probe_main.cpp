@@ -321,17 +321,18 @@ int main(int argc, char** argv) {
     for (const auto& option : options) {
       if (option.first != "--mode" && option.first != "--master-uri" &&
           option.first != "--node" && option.first != "--topic" &&
-          option.first != "--verify-address" && option.first != "--timeout-ms" &&
-          option.first != "--expected-type")
+          option.first != "--verify-address" &&
+          option.first != "--timeout-ms" && option.first != "--expected-type")
         throw std::invalid_argument("unknown option: " + option.first);
     }
     const auto mode = options["--mode"], master = options["--master-uri"];
     if (master.empty()) throw std::invalid_argument("master URI is required");
-    const auto expectedType = options.count("--expected-type")
-                                  ? options.at("--expected-type") : "";
+    const auto expectedType =
+        options.count("--expected-type") ? options.at("--expected-type") : "";
     if (options.count("--expected-type") &&
         (expectedType.empty() || expectedType.size() > 256 ||
-         !std::regex_match(expectedType,
+         !std::regex_match(
+             expectedType,
              std::regex("[A-Za-z][A-Za-z0-9_]*/[A-Za-z][A-Za-z0-9_]*"))))
       throw std::invalid_argument("expected type must use pkg/Type syntax");
     const auto timeout =
@@ -385,7 +386,8 @@ int main(int argc, char** argv) {
               if (received || !failure.empty()) return;
               try {
                 const auto& message = event.getMessage();
-                if (!expectedType.empty() && message->dataType() != expectedType)
+                if (!expectedType.empty() &&
+                    message->dataType() != expectedType)
                   throw std::runtime_error("expected " + expectedType +
                                            ", received " + message->dataType());
                 if (mode == "mavros-connected") {
