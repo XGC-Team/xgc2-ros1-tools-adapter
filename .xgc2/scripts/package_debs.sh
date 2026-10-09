@@ -161,6 +161,7 @@ chmod 0755 "${executable}"
 chmod 0755 "${service_helper}"
 chmod 0755 "${clock_wait}"
 chmod 0755 "${probe}"
+chmod 0755 "${pkg_root}${PREFIX}/lib/${ROS_PACKAGE}/${ROS_PACKAGE}_rosbag_recorder"
 
 fakeroot dpkg-deb --build "${pkg_root}" \
   "${OUTPUT_DIR}/${PACKAGE}_${VERSION}_${ARCH}.deb" >/dev/null
