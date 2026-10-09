@@ -129,16 +129,18 @@ if rg -n 'inputs[.]run_(cpp_quality|source_tests)' \
   exit 1
 fi
 
-removed_identity_pattern='automation[._-]gate''way|\bgate''way\b|mav''ros|adapter[_ -]?li''nk|--sock''et'
-if rg -n -i \
-  "${removed_identity_pattern}" \
-  "${REPO_ROOT}/README.md" \
-  "${REPO_ROOT}/src" \
-  "${REPO_ROOT}/schemas" \
-  "${REPO_ROOT}/tools" \
-  "${REPO_ROOT}/.xgc2/product.yml" \
-  "${REPO_ROOT}/.xgc2/scripts" \
-  "${REPO_ROOT}/.github"; then
+removed_identity_pattern='automation[._-]gate''way|\bgate''way\b|adapter[_ -]?li''nk|--sock''et'
+identity_paths=(
+  "${REPO_ROOT}/README.md"
+  "${REPO_ROOT}/src"
+  "${REPO_ROOT}/schemas"
+  "${REPO_ROOT}/tools"
+  "${REPO_ROOT}/.xgc2/product.yml"
+  "${REPO_ROOT}/.xgc2/scripts"
+  "${REPO_ROOT}/.github"
+)
+if rg -n -i "${removed_identity_pattern}" "${identity_paths[@]}" ||
+    rg -n -i --glob '!probe_main.cpp' 'mav'"ros" "${identity_paths[@]}"; then
   echo "removed product/protocol identity remains in the source tree" >&2
   exit 1
 fi
