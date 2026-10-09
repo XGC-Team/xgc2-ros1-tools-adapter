@@ -102,8 +102,8 @@ target_link_libraries(${PROJECT_NAME}_clock_wait ${catkin_LIBRARIES})
 add_executable(${PROJECT_NAME}_probe src/probe_main.cpp)
 target_compile_features(${PROJECT_NAME}_probe PRIVATE cxx_std_17)
 target_compile_options(${PROJECT_NAME}_probe PRIVATE -Wall -Wextra -Wpedantic -Werror)
-target_include_directories(${PROJECT_NAME}_probe PRIVATE ${catkin_INCLUDE_DIRS})
-target_link_libraries(${PROJECT_NAME}_probe ${catkin_LIBRARIES})
+target_include_directories(${PROJECT_NAME}_probe PRIVATE ${catkin_INCLUDE_DIRS} ${JSONCPP_INCLUDE_DIRS})
+target_link_libraries(${PROJECT_NAME}_probe ${catkin_LIBRARIES} ${JSONCPP_LIBRARIES})
 
 set(XGC2_INSTALLED_EXECUTABLE
   "${CMAKE_INSTALL_PREFIX}/${CATKIN_PACKAGE_BIN_DESTINATION}/${PROJECT_NAME}_node")

@@ -3,9 +3,17 @@
 #include <ros/ros.h>
 #include <ros_babel_fish/babel_fish.h>
 #include <xmlrpcpp/XmlRpcClient.h>
+#include <json/json.h>
 
 #include <boost/asio.hpp>
 #include <chrono>
+#include <cmath>
+#include <ctime>
+#include <iomanip>
+#include <memory>
+#include <set>
+#include <sstream>
+#include <vector>
 #include <csignal>
 #include <iostream>
 #include <map>
@@ -138,6 +146,171 @@ void verifyTCP(const std::string& address, Clock::time_point deadline) {
   if (failure)
     throw std::runtime_error("verify TCP listener: " + failure.message());
 }
+std::string timestamp(uint32_t sec, uint32_t nsec) {
+  const std::time_t seconds = sec;
+  std::tm utc{};
+  if (nsec >= 1000000000 || !gmtime_r(&seconds, &utc))
+    throw std::runtime_error("invalid pose timestamp");
+  std::ostringstream text;
+  text << std::put_time(&utc, "%Y-%m-%dT%H:%M:%S") << '.' << std::setw(9)
+       << std::setfill('0') << nsec << 'Z';
+  return text.str();
+}
+
+std::vector<std::string> graphNames(const Json::Value &values) {
+  if (!values.isArray() || values.size() > 256)
+    throw std::invalid_argument(
+        "pose roots/topics must be arrays of at most 256 names");
+  std::vector<std::string> result;
+  for (const auto &value : values) {
+    if (!value.isString() || value.asString() != absoluteName(value.asString()))
+      throw std::invalid_argument(
+          "pose roots/topics require absolute ROS names");
+    result.push_back(value.asString());
+  }
+  return result;
+}
+
+Json::Value readSnapshotRequest() {
+  std::string text;
+  char c;
+  while (std::cin.get(c)) {
+    if (text.size() == 1024 * 1024)
+      throw std::invalid_argument("pose snapshot input exceeds 1 MiB");
+    text.push_back(c);
+  }
+  Json::CharReaderBuilder builder;
+  builder["rejectDupKeys"] = true;
+  builder["failIfExtra"] = true;
+  Json::Value request;
+  std::string error;
+  const auto reader =
+      std::unique_ptr<Json::CharReader>(builder.newCharReader());
+  if (!reader->parse(text.data(), text.data() + text.size(), &request,
+                     &error) ||
+      !request.isObject() || !request["sessionId"].isString() ||
+      request["sessionId"].asString().empty() ||
+      !request["experimentCommitId"].isString() ||
+      request["experimentCommitId"].asString().empty() ||
+      !request["sources"].isArray() || request["sources"].empty() ||
+      request["sources"].size() > 258)
+    throw std::invalid_argument(
+        "pose snapshot requires exact Session, commit and 1..258 sources");
+  for (const auto &key : request.getMemberNames())
+    if (key != "sessionId" && key != "experimentCommitId" && key != "sources")
+      throw std::invalid_argument("unknown pose snapshot field: " + key);
+  return request;
+}
+
+Json::Value poseSnapshot(const std::string &master,
+                         Clock::time_point deadline) {
+  auto result = readSnapshotRequest();
+  const auto published =
+      call(master, "getPublishedTopics", arguments("/"), deadline);
+  if (published.getType() != Value::TypeArray)
+    throw std::runtime_error("getPublishedTopics did not return an array");
+  std::vector<std::set<std::string>> sourceTopics;
+  std::set<std::string> topics;
+  for (auto &source : result["sources"]) {
+    if (!source.isObject() || !source["instanceId"].isString() ||
+        source["instanceId"].asString().empty())
+      throw std::invalid_argument("pose source identity is required");
+    for (const auto &key : source.getMemberNames())
+      if (key != "instanceId" && key != "revision" && key != "roots" &&
+          key != "topics")
+        throw std::invalid_argument("unknown pose source field: " + key);
+    if (source.isMember("revision") && !source["revision"].isUInt64())
+      throw std::invalid_argument(
+          "pose source revision must be an unsigned integer");
+    const auto roots = graphNames(source["roots"]);
+    const auto exact = graphNames(source["topics"]);
+    if (roots.empty() && exact.empty())
+      throw std::invalid_argument("pose source requires roots or exact topics");
+    std::set<std::string> selected(exact.begin(), exact.end());
+    for (int i = 0; i < published.size(); ++i) {
+      const auto &entry = published[i];
+      if (entry.getType() != Value::TypeArray || entry.size() != 2 ||
+          entry[0].getType() != Value::TypeString ||
+          entry[1].getType() != Value::TypeString)
+        throw std::runtime_error("invalid published topic entry");
+      if (static_cast<std::string>(entry[1]) != "geometry_msgs/PoseStamped")
+        continue;
+      const auto topic = static_cast<std::string>(entry[0]);
+      for (const auto &root : roots)
+        if (topic == root || topic.compare(0, root.size() + 1, root + "/") == 0)
+          selected.insert(topic);
+    }
+    topics.insert(selected.begin(), selected.end());
+    if (topics.size() > 256)
+      throw std::invalid_argument("pose snapshot exceeds 256 distinct topics");
+    sourceTopics.push_back(std::move(selected));
+    source["samples"] = Json::Value(Json::arrayValue);
+  }
+  ros::NodeHandle handle;
+  ros::CallbackQueue callbacks;
+  handle.setCallbackQueue(&callbacks);
+  ros_babel_fish::BabelFish fish;
+  std::map<std::string, Json::Value> samples;
+  std::vector<ros::Subscriber> subscriptions;
+  subscriptions.reserve(topics.size());
+  for (const auto &topic : topics) {
+    const boost::function<void(
+        const ros::MessageEvent<ros_babel_fish::BabelFishMessage const> &)>
+        callback = [&, topic](const auto &event) {
+          if (samples.count(topic)) return;
+          try {
+            const auto &wire = event.getMessage();
+            if (wire->dataType() != "geometry_msgs/PoseStamped")
+              return;
+            const auto message = fish.translateMessage(*wire);
+            const auto &header = (*message)["header"];
+            const auto &pose = (*message)["pose"];
+            Json::Value sample(Json::objectValue);
+            sample["topic"] = topic;
+            sample["frameId"] =
+                header["frame_id"].template value<std::string>();
+            const auto stamp = header["stamp"].template value<ros::Time>();
+            sample["sourceStamp"] = timestamp(stamp.sec, stamp.nsec);
+            const auto observed = ros::WallTime::now();
+            sample["observedAt"] = timestamp(observed.sec, observed.nsec);
+            double quaternionNorm = 0;
+            for (const auto *part : {"position", "orientation"}) {
+              for (const auto *axis : {"x", "y", "z", "w"}) {
+                if (std::string(part) == "position" && std::string(axis) == "w")
+                  continue;
+                const auto number = pose[part][axis].template value<double>();
+                if (!std::isfinite(number))
+                  return;
+                sample[part][axis] = number;
+                if (std::string(part) == "orientation")
+                  quaternionNorm += number * number;
+              }
+            }
+            if (!std::isfinite(quaternionNorm) || quaternionNorm < 1e-12)
+              return;
+            samples.emplace(topic, std::move(sample));
+          } catch (const std::exception &) {
+            // A malformed publication cannot replace a fresh valid sample.
+          }
+        };
+    subscriptions.push_back(
+        handle.subscribe<ros_babel_fish::BabelFishMessage>(topic, 1, callback));
+  }
+  while (samples.size() < topics.size() && ros::ok() &&
+         Clock::now() < deadline && !stopped)
+    callbacks.callAvailable(ros::WallDuration(0.005));
+  if (stopped)
+    throw std::runtime_error("probe cancelled");
+  if (!ros::ok())
+    throw std::runtime_error("ROS shut down before pose snapshot");
+  for (Json::ArrayIndex i = 0; i < result["sources"].size(); ++i)
+    for (const auto &topic : sourceTopics[i]) {
+      const auto sample = samples.find(topic);
+      if (sample != samples.end())
+        result["sources"][i]["samples"].append(sample->second);
+    }
+  return result;
+}
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -174,7 +347,12 @@ int main(int argc, char** argv) {
         remappings, "xgc_ros1_probe",
         ros::init_options::AnonymousName | ros::init_options::NoSigintHandler);
     int pid = 0;
-    if (mode == "master" || mode == "node") {
+    if (mode == "pose-snapshot") {
+      Json::StreamWriterBuilder writer;
+      writer["indentation"] = "";
+      std::cout << Json::writeString(writer, poseSnapshot(master, deadline)) << '\n';
+      return 0;
+    } else if (mode == "master" || mode == "node") {
       if (mode == "node" && node.empty())
         throw std::invalid_argument("node is required");
       auto value =

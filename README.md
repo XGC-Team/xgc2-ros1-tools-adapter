@@ -117,3 +117,16 @@ candidate Debian versions from its signed staging repository. The candidate
 versions are resolved once, then installed and verified exactly before
 compiling this Adapter; this makes `verify` exercise the staged SDK rather than
 silently rebuilding against the previous production revision.
+
+The existing `xgc_ros1_tools_adapter_probe --mode pose-snapshot --master-uri URI
+--timeout-ms 1500` reads one JSON request on stdin and writes one JSON result.
+The request contains exact `sessionId`, `experimentCommitId` and `sources`; each
+source carries `instanceId`, optional `revision`, `roots` and `topics` arrays.
+Roots discover all published `geometry_msgs/PoseStamped` children, including
+unassigned trackers; topics select exact authored overrides. The result keeps
+those source identities and adds `samples` with topic, frame, original source
+time, wall receipt time, position and orientation. It applies no world offset.
+One native callback queue collects the first valid message per topic; quiet or
+malformed topics stay absent at the deadline. Input is bounded to 1 MiB, 258
+sources and 256 distinct topics; SIGINT/SIGTERM cancel without a result. Compose
+this finite command through the ordinary JSON stdin/output process node.
