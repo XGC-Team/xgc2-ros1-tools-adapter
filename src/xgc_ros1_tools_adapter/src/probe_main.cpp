@@ -62,7 +62,8 @@ std::string lookup(const std::string& master, const std::string& node,
 std::string absoluteName(const std::string& value) {
   std::string reason;
   const auto start = value.find_first_not_of('/');
-  const auto name = "/" + (start == std::string::npos ? "" : value.substr(start));
+  const auto name =
+      "/" + (start == std::string::npos ? "" : value.substr(start));
   if (name == "/" || !ros::names::validate(name, reason))
     throw std::invalid_argument("invalid ROS graph name");
   return name;
@@ -76,12 +77,14 @@ void topicRegistered(const std::string& master, const std::string& node,
     args[2].setSize(1);
     args[2][0].setSize(1);
     args[2][0][0] = "TCPROS";
-    const auto endpoint = call(lookup(master, node, deadline), "requestTopic", args, deadline);
+    const auto endpoint =
+        call(lookup(master, node, deadline), "requestTopic", args, deadline);
     if (endpoint.getType() != Value::TypeArray || endpoint.size() != 3 ||
         endpoint[0].getType() != Value::TypeString ||
         static_cast<std::string>(endpoint[0]) != "TCPROS" ||
         endpoint[1].getType() != Value::TypeString ||
-        endpoint[2].getType() != Value::TypeInt || static_cast<int>(endpoint[2]) <= 0)
+        endpoint[2].getType() != Value::TypeInt ||
+        static_cast<int>(endpoint[2]) <= 0)
       throw std::runtime_error("publisher did not serve the topic over TCPROS");
     return;
   }
@@ -93,7 +96,8 @@ void topicRegistered(const std::string& master, const std::string& node,
       if (entry.getType() == Value::TypeArray && entry.size() == 2 &&
           entry[0].getType() == Value::TypeString &&
           static_cast<std::string>(entry[0]) == topic &&
-          entry[1].getType() == Value::TypeArray && entry[1].size() > 0) return;
+          entry[1].getType() == Value::TypeArray && entry[1].size() > 0)
+        return;
     }
   }
   throw std::runtime_error("topic has no registered publisher");
@@ -103,7 +107,8 @@ void verifyTCP(const std::string& address, Clock::time_point deadline) {
   if (address.empty()) return;
   // Bracketed IPv6 and ordinary host:port use the same explicit contract.
   const auto colon = address.rfind(':');
-  if (colon == std::string::npos) throw std::invalid_argument("invalid verify address");
+  if (colon == std::string::npos)
+    throw std::invalid_argument("invalid verify address");
   auto host = address.substr(0, colon);
   const auto port = address.substr(colon + 1);
   if (host.size() >= 2 && host.front() == '[' && host.back() == ']')
@@ -115,17 +120,23 @@ void verifyTCP(const std::string& address, Clock::time_point deadline) {
   bool done = false;
   boost::system::error_code failure;
   resolver.async_resolve(host, port, [&](auto error, const auto& endpoints) {
-    if (error) { failure = error; done = true; return; }
-    boost::asio::async_connect(socket, endpoints, [&](auto connect_error, const auto&) {
-      failure = connect_error;
+    if (error) {
+      failure = error;
       done = true;
-    });
+      return;
+    }
+    boost::asio::async_connect(socket, endpoints,
+                               [&](auto connect_error, const auto&) {
+                                 failure = connect_error;
+                                 done = true;
+                               });
   });
   while (!done) {
     checkDeadline(deadline);
     io.run_for(std::chrono::milliseconds(5));
   }
-  if (failure) throw std::runtime_error("verify TCP listener: " + failure.message());
+  if (failure)
+    throw std::runtime_error("verify TCP listener: " + failure.message());
 }
 }  // namespace
 
@@ -144,28 +155,36 @@ int main(int argc, char** argv) {
     }
     const auto mode = options["--mode"], master = options["--master-uri"];
     if (master.empty()) throw std::invalid_argument("master URI is required");
-    const auto timeout = options.count("--timeout-ms") ? options["--timeout-ms"] : "1000";
-    if (timeout.empty() || timeout.find_first_not_of("0123456789") != std::string::npos)
+    const auto timeout =
+        options.count("--timeout-ms") ? options["--timeout-ms"] : "1000";
+    if (timeout.empty() ||
+        timeout.find_first_not_of("0123456789") != std::string::npos)
       throw std::invalid_argument("timeout must be integer milliseconds");
     const auto milliseconds = std::stoul(timeout);
     if (milliseconds < 1 || milliseconds > 86400000)
       throw std::invalid_argument("timeout must be 1..86400000 milliseconds");
-    const auto deadline = Clock::now() + std::chrono::milliseconds(milliseconds);
-    const auto node = options["--node"].empty() ? "" : absoluteName(options["--node"]);
+    const auto deadline =
+        Clock::now() + std::chrono::milliseconds(milliseconds);
+    const auto node =
+        options["--node"].empty() ? "" : absoluteName(options["--node"]);
     std::signal(SIGINT, stop);
     std::signal(SIGTERM, stop);
     ros::M_string remappings{{"__master", master}};
-    ros::init(remappings, "xgc_ros1_probe",
-              ros::init_options::AnonymousName | ros::init_options::NoSigintHandler);
+    ros::init(
+        remappings, "xgc_ros1_probe",
+        ros::init_options::AnonymousName | ros::init_options::NoSigintHandler);
     int pid = 0;
     if (mode == "master" || mode == "node") {
-      if (mode == "node" && node.empty()) throw std::invalid_argument("node is required");
-      auto value = call(mode == "master" ? master : lookup(master, node, deadline),
-                        "getPid", arguments(), deadline);
+      if (mode == "node" && node.empty())
+        throw std::invalid_argument("node is required");
+      auto value =
+          call(mode == "master" ? master : lookup(master, node, deadline),
+               "getPid", arguments(), deadline);
       if (value.getType() != Value::TypeInt || static_cast<int>(value) <= 0)
         throw std::runtime_error("getPid did not return a positive PID");
       pid = static_cast<int>(value);
-    } else if (mode == "topic" || mode == "message" || mode == "mavros-connected") {
+    } else if (mode == "topic" || mode == "message" ||
+               mode == "mavros-connected") {
       const auto topic = absoluteName(options["--topic"]);
       if (mode == "topic") {
         topicRegistered(master, node, topic, deadline);
@@ -174,28 +193,36 @@ int main(int argc, char** argv) {
         ros_babel_fish::BabelFish fish;
         bool received = false;
         std::string failure;
-        const boost::function<void(const ros::MessageEvent<ros_babel_fish::BabelFishMessage const>&)> callback =
-            [&](const auto& event) {
-          if (!node.empty() && event.getPublisherName() != node) return;
-          try {
-            if (mode == "mavros-connected") {
-              const auto& message = event.getMessage();
-              if (message->dataType() != "mavros_msgs/State")
-                throw std::runtime_error("expected mavros_msgs/State");
-              if (!(*fish.translateMessage(*message))["connected"].template value<bool>())
-                throw std::runtime_error("MAVROS reports the FCU as disconnected");
-            }
-            received = true;
-          } catch (const std::exception& error) { failure = error.what(); }
-        };
-        auto subscription = handle.subscribe<ros_babel_fish::BabelFishMessage>(topic, 1, callback);
+        const boost::function<void(
+            const ros::MessageEvent<ros_babel_fish::BabelFishMessage const>&)>
+            callback = [&](const auto& event) {
+              if (!node.empty() && event.getPublisherName() != node) return;
+              try {
+                if (mode == "mavros-connected") {
+                  const auto& message = event.getMessage();
+                  if (message->dataType() != "mavros_msgs/State")
+                    throw std::runtime_error("expected mavros_msgs/State");
+                  if (!(*fish.translateMessage(*message))["connected"]
+                           .template value<bool>())
+                    throw std::runtime_error(
+                        "MAVROS reports the FCU as disconnected");
+                }
+                received = true;
+              } catch (const std::exception& error) {
+                failure = error.what();
+              }
+            };
+        auto subscription = handle.subscribe<ros_babel_fish::BabelFishMessage>(
+            topic, 1, callback);
         while (!received && failure.empty() && ros::ok()) {
           checkDeadline(deadline);
-          ros::getGlobalCallbackQueue()->callAvailable(ros::WallDuration(0.005));
+          ros::getGlobalCallbackQueue()->callAvailable(
+              ros::WallDuration(0.005));
         }
         checkDeadline(deadline);
         if (!failure.empty()) throw std::runtime_error(failure);
-        if (!received) throw std::runtime_error("ROS shut down before a topic message");
+        if (!received)
+          throw std::runtime_error("ROS shut down before a topic message");
       }
     } else {
       throw std::invalid_argument("unsupported probe mode");
